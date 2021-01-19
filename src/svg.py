@@ -13,7 +13,9 @@ class SVGmaker:
 
     poly_placeholder = "%polygons%"
 
-    def __init__(self, data, output_dir, dims, scale=1, vbox=[0, 0, -1, -1], constraint=182.25):
+    def __init__(
+        self, data, output_dir, dims, scale=1, vbox=[0, 0, -1, -1], constraint=182.25
+    ):
         # Initial image dimensions
         self.width, self.height = dims
 
@@ -44,7 +46,7 @@ class SVGmaker:
         # Output
         self.output_file_name = self._file_naming(data, output_dir)
 
-    def xml_init(self, shape_rendering='geometricprecision'):
+    def xml_init(self, shape_rendering="geometricprecision"):
         """
         Initialize XML
 
@@ -93,7 +95,15 @@ class SVGmaker:
             # Get HEX colours
             chex = self.rgb2hex(c[3], c[2], c[1])
             # Append
-            xml_poly += '<polygon points="' + tmpx + '" style="fill:' + chex + ';opacity:' + str(c[0]) + '"/>'
+            xml_poly += (
+                '<polygon points="'
+                + tmpx
+                + '" style="fill:'
+                + chex
+                + ";opacity:"
+                + str(c[0])
+                + '"/>'
+            )
 
         return xml_poly
 
@@ -136,25 +146,25 @@ class SVGmaker:
         xml_str += "</svg>"
 
         return xml_str
-    
+
     def save_svg(self, content):
         """ Write string to file """
-        
+
         ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
-        svg_file = self.output_file_name + f"_{ctime}" + '.svg'
+        svg_file = self.output_file_name + f"_{ctime}" + ".svg"
         text_file = open(svg_file, "wt")
         text_file.write(content)
         text_file.close()
-        
+
         return svg_file
-        
+
     def save_png(self, content):
         """ Save SVG as PNG """
-        
+
         ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
-        png_file = self.output_file_name + f"_{ctime}" + '.png'
-        svg2png(bytestring=content,write_to=png_file)
-        
+        png_file = self.output_file_name + f"_{ctime}" + ".png"
+        svg2png(bytestring=content, write_to=png_file)
+
         return png_file
 
     def join_list(self, x, deli=" "):
@@ -180,11 +190,11 @@ class SVGmaker:
         if output_type == "directory":
             return str(
                 output_path.joinpath(
-                    '_'.join(
+                    "_".join(
                         [
-                            "{}-{}".format(k,v) 
-                            for k,v in data.items() 
-                            if k not in ['repeat','colours']
+                            "{}-{}".format(k, v)
+                            for k, v in data.items()
+                            if k not in ["repeat", "colours"]
                         ]
                     )
                 )

@@ -8,6 +8,7 @@ Created on Thu Dec  12 20:52:08 2020
 import argparse
 from pathlib import Path
 from rich.traceback import install
+
 install()
 
 
@@ -95,7 +96,9 @@ class FileDirectoryCheck(argparse.Action):
                     all_values.append({p: "directory"})
             else:
                 if not p.exists():
-                    raise FileNotFoundError(f"The specificed path `{fl}` does not exist.")
+                    raise FileNotFoundError(
+                        f"The specificed path `{fl}` does not exist."
+                    )
                 if p.is_file():
                     all_values.append({p: "file"})
                 else:

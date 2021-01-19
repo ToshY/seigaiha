@@ -9,10 +9,9 @@ import pyfiglet
 from pathlib import Path
 from rich import print
 
+
 def cli_banner(
-    current_file: str,
-    banner_font: str = "isometric3",
-    banner_width: int = 200
+    current_file: str, banner_font: str = "isometric3", banner_width: int = 200
 ) -> None:
     """
     CLI banner

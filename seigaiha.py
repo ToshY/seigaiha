@@ -29,6 +29,7 @@ from itertools import cycle
 from rich import print
 from rich.prompt import IntPrompt
 
+
 def cli_args():
     """
     Command Line argument parser.
@@ -65,9 +66,7 @@ def cli_args():
     args = parser.parse_args()
 
     # Check args count
-    user_args = check_args(
-        args.preset, args.output
-    )
+    user_args = check_args(args.preset, args.output)
 
     return user_args
 
@@ -316,32 +315,24 @@ def main():
             )
 
             # Init SVGmaker
-            SVG = SVGmaker(
-                data,
-                output,
-                [
-                    box_dims["width"],
-                    box_dims["height"]
-                ],
-                width
-            )
+            SVG = SVGmaker(data, output, [box_dims["width"], box_dims["height"]], width)
 
             # Create SVG string
             svg_str = SVG.xml_init()
             svg_poly = SVG.xml_poly(polygon_coords, colours_format)
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
-            
+
             # Save and print
-            print("\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
-                    SVG.save_svg(svg_finalized),
-                    SVG.save_png(svg_finalized)
+            print(
+                "\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
+                    SVG.save_svg(svg_finalized), SVG.save_png(svg_finalized)
                 )
             )
 
 
 if __name__ == "__main__":
     """ Main """
-    cli_banner(__file__, banner_font='slant')
+    cli_banner(__file__, banner_font="slant")
 
     # Stop execution at keyboard input
     try:
