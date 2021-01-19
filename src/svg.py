@@ -5,12 +5,15 @@ Created on Wed Jul 22 16:29:25 2020
 @author: ToshY
 """
 
+import datetime
+from cairosvg import svg2png
+
 
 class SVGmaker:
 
     poly_placeholder = "%polygons%"
 
-    def __init__(self, dims, scale=1, vbox=[0, 0, -1, -1], constraint=182.25):
+    def __init__(self, data, output_dir, dims, scale=1, vbox=[0, 0, -1, -1], constraint=182.25):
         # Initial image dimensions
         self.width, self.height = dims
 
@@ -38,7 +41,10 @@ class SVGmaker:
             self.view_box = [self.scale * x for x in self.view_box]
             self.width, self.height = self.view_box[-2:]
 
-    def xml_init(self):
+        # Output
+        self.output_file_name = self._file_naming(data, output_dir)
+
+    def xml_init(self, shape_rendering='geometricprecision'):
         """
         Initialize XML
 
@@ -61,13 +67,35 @@ class SVGmaker:
             + str(self.scale)
             + ","
             + str(self.scale)
-            + ')" style="shape-rendering:crispEdges;">\r\n'
+            + ')" style="shape-rendering:'
+            + shape_rendering
+            + ';">\r\n'
         )
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
         xml_str += "</svg>"
 
         return xml_str
+
+    def xml_poly(self, polygon, colours):
+        """ Create triangle segments """
+
+        # Loop over points and format to svg polygon
+        xml_poly = ""
+        for idx, (s, c) in enumerate(zip(polygon, colours)):
+            tmpx = ""
+            for p in s:
+                tmpx = " ".join([tmpx, ",".join(str(e) for e in p)])
+
+            # Strip leading whitespace
+            tmpx = tmpx.strip()
+
+            # Get HEX colours
+            chex = self.rgb2hex(c[3], c[2], c[1])
+            # Append
+            xml_poly += '<polygon points="' + tmpx + '" style="fill:' + chex + ';opacity:' + str(c[0]) + '"/>'
+
+        return xml_poly
 
     def xml_repeat_pattern(self, polygon, colours):
         """
@@ -108,6 +136,26 @@ class SVGmaker:
         xml_str += "</svg>"
 
         return xml_str
+    
+    def save_svg(self, content):
+        """ Write string to file """
+        
+        ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
+        svg_file = self.output_file_name + f"_{ctime}" + '.svg'
+        text_file = open(svg_file, "wt")
+        text_file.write(content)
+        text_file.close()
+        
+        return svg_file
+        
+    def save_png(self, content):
+        """ Save SVG as PNG """
+        
+        ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
+        png_file = self.output_file_name + f"_{ctime}" + '.png'
+        svg2png(bytestring=content,write_to=png_file)
+        
+        return png_file
 
     def join_list(self, x, deli=" "):
         """ Join lists/tuples to string """
@@ -120,6 +168,29 @@ class SVGmaker:
         return "#{0:02x}{1:02x}{2:02x}".format(
             self._rgbounds(r), self._rgbounds(g), self._rgbounds(b)
         )
+
+    def _file_naming(self, data, output_dir):
+        """ File naming """
+
+        # Output split
+        output_path = list(output_dir.keys())[0]
+        output_type = list(output_dir.values())[0]
+
+        # Prepare output file name
+        if output_type == "directory":
+            return str(
+                output_path.joinpath(
+                    '_'.join(
+                        [
+                            "{}-{}".format(k,v) 
+                            for k,v in data.items() 
+                            if k not in ['repeat','colours']
+                        ]
+                    )
+                )
+            )
+
+        return str(output_path.with_suffix(""))
 
     def _rgbounds(self, x):
         """ RGB boundaries """
