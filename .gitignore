@@ -1,0 +1,13 @@
+# Spyder project settings
+.spyproject
+.spyderproject
+
+# pycache
+src/__pycache__
+
+# pylint
+.pylind.d
+src/.pylind.d
+
+#output
+out/
