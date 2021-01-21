@@ -7,7 +7,6 @@ Created on Mon Oct 19 22:30:50 2020
 Seigaiha SVG pattern maker
 """
 
-import sys
 import argparse
 import numpy as np
 import math
@@ -302,8 +301,6 @@ def main():
             spacing = data["spacing"]
             rotation = data["rotation"]
             pattern = data["pattern"]
-            pattern_repeat_horizontal = data["repeat"]["horizontal"]
-            pattern_repeat_vertical = data["repeat"]["vertical"]
             colours = data["colours"]
 
             # Colours to tuple
@@ -317,7 +314,7 @@ def main():
             # Init SVGmaker
             SVG = SVGmaker(data, output, [box_dims["width"], box_dims["height"]], width)
 
-            # Create SVG string
+            # Create single SVG string
             svg_str = SVG.xml_init()
             svg_poly = SVG.xml_poly(polygon_coords, colours_format)
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
@@ -328,6 +325,34 @@ def main():
                     SVG.save_svg(svg_finalized), SVG.save_png(svg_finalized)
                 )
             )
+            
+            # Create pattern
+            if pattern:
+                # Create pattern setup
+                svg_pattern = SVG.xml_setup_pattern(data["repeat"])
+
+                # Create copies of the initial "single" polygon and translate conform pattern
+                pattern_polygons_coords = []
+                for iy, yl in enumerate(svg_pattern):
+                    for ix, xl in enumerate(yl):
+                        xp = xl[0]
+                        yp = xl[1]
+                        if ((xp == None) | (yp == None)):
+                            xp = yp = 0
+                        
+                        #print(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
+                        pattern_polygons_coords.append(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
+                        
+                # Create the actual pattern; TODO: the current svg pattern makes no fucking sense
+                svg_poly_pattern = SVG.xml_create_pattern(pattern_polygons_coords, colours_format)
+                svg_finalized_pattern = svg_str.replace(SVG.poly_placeholder, svg_poly_pattern['string'])
+                
+                # Save and print
+                print(
+                    "\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
+                        SVG.save_svg(svg_finalized_pattern), SVG.save_png(svg_finalized_pattern)
+                    )
+                )
 
 
 if __name__ == "__main__":
