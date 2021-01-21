@@ -325,7 +325,7 @@ def main():
                     SVG.save_svg(svg_finalized), SVG.save_png(svg_finalized)
                 )
             )
-            
+
             # Create pattern
             if pattern:
                 # Create pattern setup
@@ -337,20 +337,29 @@ def main():
                     for ix, xl in enumerate(yl):
                         xp = xl[0]
                         yp = xl[1]
-                        if ((xp == None) | (yp == None)):
+                        if (xp == None) | (yp == None):
                             xp = yp = 0
-                        
-                        #print(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
-                        pattern_polygons_coords.append(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
-                        
+
+                        # print(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
+                        pattern_polygons_coords.append(
+                            get_polygon_coords(
+                                [affinity.translate(p, xp, yp) for p in polygon_objs]
+                            )
+                        )
+
                 # Create the actual pattern; TODO: the current svg pattern makes no fucking sense
-                svg_poly_pattern = SVG.xml_create_pattern(pattern_polygons_coords, colours_format)
-                svg_finalized_pattern = svg_str.replace(SVG.poly_placeholder, svg_poly_pattern['string'])
-                
+                svg_poly_pattern = SVG.xml_create_pattern(
+                    pattern_polygons_coords, colours_format
+                )
+                svg_finalized_pattern = svg_str.replace(
+                    SVG.poly_placeholder, svg_poly_pattern["string"]
+                )
+
                 # Save and print
                 print(
                     "\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
-                        SVG.save_svg(svg_finalized_pattern), SVG.save_png(svg_finalized_pattern)
+                        SVG.save_svg(svg_finalized_pattern),
+                        SVG.save_png(svg_finalized_pattern),
                     )
                 )
 

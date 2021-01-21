@@ -46,7 +46,7 @@ class SVGmaker:
         if self.scale != 1:
             self.view_box = [self.scale * x for x in self.view_box]
             self.width, self.height = self.view_box[-2:]
-            
+
         # Center polygon
         self.xcenter = self.width / 2
         self.ycenter = self.height / 2
@@ -72,9 +72,8 @@ class SVGmaker:
             'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
         )
         xml_str += 'viewBox="' + self.join_list(self.view_box) + '">\r\n'
-        xml_str += ('<g style="shape-rendering:geometricprecision'
-            + shape_rendering
-            + ';">\r\n'
+        xml_str += (
+            '<g style="shape-rendering:geometricprecision' + shape_rendering + ';">\r\n'
         )
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
@@ -90,7 +89,7 @@ class SVGmaker:
         for idx, (s, c) in enumerate(zip(polygon, colours)):
             tmpx = ""
             for p in s:
-                tmpx = " ".join([tmpx, ",".join(str(e*self.scale) for e in p)])
+                tmpx = " ".join([tmpx, ",".join(str(e * self.scale) for e in p)])
 
             # Strip leading whitespace
             tmpx = tmpx.strip()
@@ -110,54 +109,59 @@ class SVGmaker:
             )
 
         return xml_poly
-    
+
     def xml_setup_pattern(self, pattern_info):
-        hz = pattern_info['horizontal']
-        vt = pattern_info['vertical']
-        br = pattern_info['broken']
+        hz = pattern_info["horizontal"]
+        vt = pattern_info["vertical"]
+        br = pattern_info["broken"]
 
         # Standard pattern
-        xl = np.linspace(0, round(self.width*hz['spacing']*hz['amount']), hz['amount']+1).tolist()[:-1]
-        yl = np.linspace(0, round(self.height*vt['spacing']*vt['amount']), vt['amount']+1).tolist()[:-1]
-        
+        xl = np.linspace(
+            0, round(self.width * hz["spacing"] * hz["amount"]), hz["amount"] + 1
+        ).tolist()[:-1]
+        yl = np.linspace(
+            0, round(self.height * vt["spacing"] * vt["amount"]), vt["amount"] + 1
+        ).tolist()[:-1]
+
         pattern_list = [[] for el in yl]
         for iy in range(len(yl)):
             ix_list = []
             for ix in range(len(xl)):
-                ix_list.append((self.xcenter+xl[ix],self.ycenter+yl[iy]))
-                
+                ix_list.append((self.xcenter + xl[ix], self.ycenter + yl[iy]))
+
             pattern_list[iy].append(ix_list)
-            
-        pattern_list = reduce(lambda x,y: x+y,pattern_list)
-        
-        # Broken Total Factor in pattern 
-        btf = round(br * (hz['amount'] * vt['amount']))
-        
+
+        pattern_list = reduce(lambda x, y: x + y, pattern_list)
+
+        # Broken Total Factor in pattern
+        btf = round(br * (hz["amount"] * vt["amount"]))
+
         # Somewhat equally distributed random items to break in pattern per line
         broken_polygons = [
-            round(sum(x)/2) for x in zip(
-                self._random_partition(btf,vt['amount']), 
-                self._random_partition(btf,vt['amount'])
+            round(sum(x) / 2)
+            for x in zip(
+                self._random_partition(btf, vt["amount"]),
+                self._random_partition(btf, vt["amount"]),
             )
         ]
 
         # Check if some are broken
-        if (sum(broken_polygons) > 0):
+        if sum(broken_polygons) > 0:
             for x, k in enumerate(pattern_list):
                 broken_hz = broken_polygons[x]
                 bk = 0
                 while bk < broken_hz:
-                    pattern_list[x][self._random_index(pattern_list[x])] = (None,None)
+                    pattern_list[x][self._random_index(pattern_list[x])] = (None, None)
                     bk += 1
-                
+
         # Pattern list to fill polygons with
         return pattern_list
-    
+
     def xml_create_pattern(self, polygons, colours):
         xml_pattern = []
         for p in polygons:
             xml_pattern.append(self.xml_poly(p, colours))
-        return {'paths':xml_pattern,'string':'\r\n'.join(xml_pattern)}
+        return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 
     def xml_repeat_pattern(self, polygon, colours):
         """
@@ -275,9 +279,9 @@ class SVGmaker:
         for x in range(n):
             partition[random.randrange(s)] += 1
         return partition
-    
+
     def _random_index(self, n):
         return random.randrange(len(n))
-    
+
     def _linspace(self, d, u, l):
-        return [d + x*(u-d)/l for x in range(l)]
+        return [d + x * (u - d) / l for x in range(l)]
