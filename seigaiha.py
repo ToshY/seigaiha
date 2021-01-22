@@ -10,13 +10,11 @@ Seigaiha SVG pattern maker
 import argparse
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 from pathlib import Path
 from src.banner import cli_banner
 from src.args import FileDirectoryCheck, files_in_dir
 from shapely.geometry import Polygon
 from shapely import affinity
-from shapely.ops import cascaded_union
 from src.svg import SVGmaker
 from src.general import (
     read_json,
@@ -26,7 +24,6 @@ from src.general import (
 )
 from itertools import cycle
 from rich import print
-from rich.prompt import IntPrompt
 
 
 def cli_args():
@@ -312,16 +309,16 @@ def main():
             )
 
             # Init SVGmaker
-            SVG = SVGmaker(data, output, [box_dims["width"], box_dims["height"]], width)
+            SVG = SVGmaker(data, output, [box_dims["width"], box_dims["height"]])
 
             # Create single SVG string
             svg_str = SVG.xml_init()
-            svg_poly = SVG.xml_poly(polygon_coords, colours_format)
+            svg_poly = SVG.xml_poly([polygon_coords], colours_format)
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
 
             # Save and print
             print(
-                "\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
+                "\r > Saved polygon to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
                     SVG.save_svg(svg_finalized), SVG.save_png(svg_finalized)
                 )
             )
@@ -333,21 +330,28 @@ def main():
 
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_coords = []
-                for iy, yl in enumerate(svg_pattern):
-                    for ix, xl in enumerate(yl):
+                for idx, row in enumerate(svg_pattern):
+                    pattern_polygons_coords.append([])
+                    polygons_row = []
+                    for ix, xl in enumerate(row):
                         xp = xl[0]
                         yp = xl[1]
                         if (xp == None) | (yp == None):
                             xp = yp = 0
 
                         # print(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
-                        pattern_polygons_coords.append(
+                        polygons_row.append(
                             get_polygon_coords(
                                 [affinity.translate(p, xp, yp) for p in polygon_objs]
                             )
                         )
 
-                # Create the actual pattern; TODO: the current svg pattern makes no fucking sense
+                    pattern_polygons_coords[idx] = polygons_row
+
+                # print((pattern_polygons_coords))
+                # Create the actual pattern;
+                # TODO: the current svg pattern still makes no fucking sense,
+                # I have no idea why the fuck it's not rendering stacked. fml
                 svg_poly_pattern = SVG.xml_create_pattern(
                     pattern_polygons_coords, colours_format
                 )
@@ -357,7 +361,7 @@ def main():
 
                 # Save and print
                 print(
-                    "\r > Saved output to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
+                    "\r > Saved pattern to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
                         SVG.save_svg(svg_finalized_pattern),
                         SVG.save_png(svg_finalized_pattern),
                     )

@@ -1,20 +1,21 @@
 {
     "width": 1000,
-    "fractions": 8,
-    "edges": 360,
+    "fractions": 3,
+    "edges": 3,
     "spacing": 0.3,
     "rotation": 0,
     "pattern": true,
     "repeat": {
         "horizontal":{
-            "amount": 50,
+            "amount": 3,
             "spacing": 1
         },
         "vertical":{
-            "amount": 10,
+            "amount": 2,
             "spacing": 0.5
         },
-        "broken": 0.2
+        "broken": 0,
+        "alternate": 1
     },    
     "colours":[
         {
