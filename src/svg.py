@@ -62,7 +62,7 @@ class SVGmaker:
             DESCRIPTION.
 
         """
-        
+
         # TODO; Fix the width for patterns + translate/normalize to top left ?
         xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
         xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
@@ -71,6 +71,40 @@ class SVGmaker:
             'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
         )
         xml_str += 'viewBox="' + self.join_list(self.view_box) + '">\r\n'
+        xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
+        xml_str += self.poly_placeholder
+        xml_str += "</g>\r\n"
+        xml_str += "</svg>"
+
+        return xml_str
+
+    def xml_init_pattern(self, factor=1, shape_rendering="geometricprecision"):
+        """
+        Initialize XML
+
+        Returns
+        -------
+        xml_str : TYPE
+            DESCRIPTION.
+
+        """
+
+        # TODO: This part is still a bit wonky. The viewbox is not exactly fitting the pattern yet.
+        # So I don't know how to fix it yet. The whole viewBox thing below was just a test also
+        # which I came up while drinking so, it works somehow.
+        viewBox = [element * factor for element in self.view_box]
+        viewBox[0] = self.width / 2
+        viewBox[1] = self.height / 2
+        viewBox[2] = viewBox[2]
+        viewBox[3] = viewBox[3] + (self.height) + (self.height / 4)
+
+        xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
+        xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
+        xml_str += '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
+        xml_str += (
+            'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
+        )
+        xml_str += 'viewBox="' + self.join_list(viewBox) + '">\r\n'
         xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
@@ -129,7 +163,9 @@ class SVGmaker:
             if iy % 2 != 0:
                 xll = xli
             for ix in range(len(xll)):
-                ix_list.append((self.xcenter + xll[ix], self.ycenter + yl[iy]))
+                ix_list.append(
+                    (self.xcenter + xll[ix], self.ycenter + yl[iy], {"broken": False})
+                )
 
             pattern_list[iy] = ix_list
 
@@ -151,7 +187,9 @@ class SVGmaker:
                 broken_hz = broken_polygons[x]
                 bk = 0
                 while bk < broken_hz:
-                    pattern_list[x][self._random_index(pattern_list[x])] = (None, None)
+                    pattern_list[x][self._random_index(pattern_list[x])][-1][
+                        "broken"
+                    ] = True
                     bk += 1
 
         # Pattern list to fill polygons with

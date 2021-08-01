@@ -11,3 +11,6 @@ src/.pylind.d
 
 #output
 out/
+
+#preset
+preset/

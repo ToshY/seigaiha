@@ -291,7 +291,7 @@ def main():
         for y, fl in enumerate(b["input"]):
             # Check if first/last item for reporting
             output = b["output"][y]
-            data = b["data"][y]
+            data = b["data"]
             width = data["width"]
             fractions = data["fractions"]
             edges = data["edges"]
@@ -325,6 +325,11 @@ def main():
 
             # Create pattern
             if pattern:
+                # Init pattern
+                svg_str_pattern = SVG.xml_init_pattern(
+                    data["repeat"]["horizontal"]["amount"]
+                )
+
                 # Create pattern setup
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
 
@@ -336,13 +341,14 @@ def main():
                     for ix, xl in enumerate(row):
                         xp = xl[0]
                         yp = xl[1]
-                        if (xp == None) | (yp == None):
-                            xp = yp = 0
+                        broken = xl[2]["broken"]
+                        single_polygon = polygon_objs
+                        if broken is True:
+                            single_polygon = polygon_objs[:2]
 
-                        # print(get_polygon_coords([affinity.translate(p, xp, yp) for p in polygon_objs]))
                         polygons_row.append(
                             get_polygon_coords(
-                                [affinity.translate(p, xp, yp) for p in polygon_objs]
+                                [affinity.translate(p, xp, yp) for p in single_polygon]
                             )
                         )
 
@@ -355,7 +361,7 @@ def main():
                 svg_poly_pattern = SVG.xml_create_pattern(
                     pattern_polygons_coords, colours_format
                 )
-                svg_finalized_pattern = svg_str.replace(
+                svg_finalized_pattern = svg_str_pattern.replace(
                     SVG.poly_placeholder, svg_poly_pattern["string"]
                 )
 
