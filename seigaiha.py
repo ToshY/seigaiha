@@ -192,7 +192,7 @@ def get_polygon_coords(polygons):
 def get_colours(polygon_list, polygon_colours):
     """ Get alternating colours for polygon filling """
 
-    bgr = [t[::-1] for t in polygon_colours]
+    bgr = reverse_colours(polygon_colours)
 
     if len(bgr) < len(polygon_list):
         colours_cycle = cycle(bgr)
@@ -203,6 +203,12 @@ def get_colours(polygon_list, polygon_colours):
         return nlb
 
     return bgr
+
+
+def reverse_colours(colours: list):
+    """ Reverse colours in list of tuples """
+
+    return [c[::-1] for c in colours]
 
 
 def create_polygon(
@@ -326,9 +332,28 @@ def main():
             # Create pattern
             if pattern:
                 # Init pattern
-                svg_str_pattern = SVG.xml_init_pattern(
-                    data["repeat"]["horizontal"]["amount"]
-                )
+                svg_str_pattern = SVG.xml_init_pattern()
+                
+                # Check broken
+                broken_pattern = data["repeat"]["broken"]
+                
+                if not all(key in broken_pattern for key in ('factor', 'fractions', 'colours')):
+                    raise Exception(
+                        "Not all necessary keys `factor`, `fractions` and `colours` for broken pattern are specified."
+                    )
+                    
+                if broken_pattern['fractions'] >= fractions:
+                    raise Exception(
+                        "The `fractions` key for broken pattern can not be equal or larger than the main `fractions` key."
+                    )
+                    
+                if len(broken_pattern['colours']) != broken_pattern['fractions']:
+                    raise Exception(
+                        "The amount of colours for the broken pattern has to be the same as specified broken `fractions`."
+                    )
+                    
+                # Colours to tuple
+                broken_colours = reverse_colours([tuple(el.values()) for el in broken_pattern['colours']])
 
                 # Create pattern setup
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
@@ -344,22 +369,23 @@ def main():
                         broken = xl[2]["broken"]
                         single_polygon = polygon_objs
                         if broken is True:
-                            single_polygon = polygon_objs[:2]
+                            single_polygon = polygon_objs[:broken_pattern['fractions']]
 
+
+                        single_polygon_coords = get_polygon_coords(
+                            [affinity.translate(p, xp, yp) for p in single_polygon]
+                        )
+                        
+                        single_polygon_coords.append(xl[2])
                         polygons_row.append(
-                            get_polygon_coords(
-                                [affinity.translate(p, xp, yp) for p in single_polygon]
-                            )
+                            single_polygon_coords
                         )
 
                     pattern_polygons_coords[idx] = polygons_row
 
-                # print((pattern_polygons_coords))
                 # Create the actual pattern;
-                # TODO: the current svg pattern still makes no fucking sense,
-                # I have no idea why the fuck it's not rendering stacked. fml
                 svg_poly_pattern = SVG.xml_create_pattern(
-                    pattern_polygons_coords, colours_format
+                    pattern_polygons_coords, colours_format, broken_colours
                 )
                 svg_finalized_pattern = svg_str_pattern.replace(
                     SVG.poly_placeholder, svg_poly_pattern["string"]

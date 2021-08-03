@@ -20,3 +20,7 @@ conda install shapely
 conda install cairo
 ```
 
+## How To Use
+```
+python seigaiha.py -p preset/pattern_preset.json -o out
+```

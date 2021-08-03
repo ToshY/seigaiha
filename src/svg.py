@@ -48,6 +48,12 @@ class SVGmaker:
         # Center polygon
         self.xcenter = self.width / 2
         self.ycenter = self.height / 2
+        
+        # Spacing and factor
+        self.xnodes = data['repeat']['horizontal']['amount']
+        self.xspacing_factor = data['repeat']['horizontal']['spacing']
+        self.ynodes = data['repeat']['vertical']['amount']
+        self.yspacing_factor = data['repeat']['vertical']['spacing']
 
         # Output
         self.output_file_name = self._file_naming(data, output_dir)
@@ -78,7 +84,7 @@ class SVGmaker:
 
         return xml_str
 
-    def xml_init_pattern(self, factor=1, shape_rendering="geometricprecision"):
+    def xml_init_pattern(self, shape_rendering="geometricprecision"):
         """
         Initialize XML
 
@@ -92,17 +98,17 @@ class SVGmaker:
         # TODO: This part is still a bit wonky. The viewbox is not exactly fitting the pattern yet.
         # So I don't know how to fix it yet. The whole viewBox thing below was just a test also
         # which I came up while drinking so, it works somehow.
-        viewBox = [element * factor for element in self.view_box]
-        viewBox[0] = self.width / 2
-        viewBox[1] = self.height / 2
-        viewBox[2] = viewBox[2]
-        viewBox[3] = viewBox[3] + (self.height) + (self.height / 4)
+        viewBox = self.view_box
+        viewBox[0] = viewBox[0] + self.width
+        viewBox[1] = viewBox[1] + self.height
+        viewBox[2] = viewBox[2] * self.xnodes - self.width
+        viewBox[3] = viewBox[3] / self.ynodes
 
         xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
         xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
         xml_str += '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
         xml_str += (
-            'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
+            'width="' + str(self.width*self.xspacing_factor) + 'px" height="' + str(self.height*self.yspacing_factor) + 'px" '
         )
         xml_str += 'viewBox="' + self.join_list(viewBox) + '">\r\n'
         xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
@@ -119,10 +125,11 @@ class SVGmaker:
         xml_final = ""
         for idx, s in enumerate(polygon):
             xml_poly = "<g>"
-            for ip, p in enumerate(s):
+            for ip, p in enumerate(s[:-1]):
                 c = colours[ip]
-                # Get HEX colours
+                 # Get HEX colours
                 chex = self.rgb2hex(c[3], c[2], c[1])
+                
                 xml_poly += (
                     '<path d="M'
                     + " ".join("%s,%s" % tup for tup in p)
@@ -132,7 +139,37 @@ class SVGmaker:
                     + str(c[0])
                     + '"/>'
                 )
-            xml_poly += "</g>"
+            xml_poly += '</g>'
+            xml_final += xml_poly
+
+        return xml_final
+    
+    def xml_poly_pattern(self, polygon, colours, broken_colours):
+        """ Create polygon segments """
+
+        # Loop over points and format to svg polygon
+        xml_final = ""
+        for idx, s in enumerate(polygon):
+            is_broken = s[-1]['broken']
+            xml_poly = "<g>"
+            for ip, p in enumerate(s[:-1]):
+                c = colours[ip]
+                 # Get HEX colours
+                chex = self.rgb2hex(c[3], c[2], c[1])
+                if is_broken is True:
+                    c = broken_colours[ip]
+                    chex = self.rgb2hex(c[3], c[2], c[1])
+                
+                xml_poly += (
+                    '<path d="M'
+                    + " ".join("%s,%s" % tup for tup in p)
+                    + 'Z" fill="'
+                    + chex
+                    + '" fill-opacity="'
+                    + str(c[0])
+                    + '"/>'
+                )
+            xml_poly += '</g>'
             xml_final += xml_poly
 
         return xml_final
@@ -170,7 +207,11 @@ class SVGmaker:
             pattern_list[iy] = ix_list
 
         # Broken Total Factor in pattern
-        btf = round(br * (hz["amount"] * vt["amount"]))
+        if not br['factor']:
+            raise Exception(
+                "The broken factor was not specified."
+            )
+        btf = round(br['factor'] * (hz["amount"] * vt["amount"]))
 
         # Somewhat equally distributed random items to break in pattern per line
         broken_polygons = [
@@ -195,10 +236,10 @@ class SVGmaker:
         # Pattern list to fill polygons with
         return pattern_list
 
-    def xml_create_pattern(self, polygons, colours):
+    def xml_create_pattern(self, polygons, colours, broken_colours):
         xml_pattern = []
         for p in polygons:
-            xml_pattern.append(self.xml_poly(p, colours))
+            xml_pattern.append(self.xml_poly_pattern(p, colours, broken_colours))
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 
     def save_svg(self, content):
