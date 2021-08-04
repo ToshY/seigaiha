@@ -1,6 +1,6 @@
 {
     "width": 5000,
-    "fractions": 6,
+    "fractions": 7,
     "edges": 9,
     "spacing": 0.3,
     "rotation": 0,
@@ -15,7 +15,7 @@
             "spacing": 0.25
         },
         "broken":{
-            "factor": 0.2,
+            "factor": 0.1,
             "fractions": 2,
             "colours":[
                 {

@@ -48,12 +48,12 @@ class SVGmaker:
         # Center polygon
         self.xcenter = self.width / 2
         self.ycenter = self.height / 2
-        
+
         # Spacing and factor
-        self.xnodes = data['repeat']['horizontal']['amount']
-        self.xspacing_factor = data['repeat']['horizontal']['spacing']
-        self.ynodes = data['repeat']['vertical']['amount']
-        self.yspacing_factor = data['repeat']['vertical']['spacing']
+        self.xnodes = data["repeat"]["horizontal"]["amount"]
+        self.xspacing_factor = data["repeat"]["horizontal"]["spacing"]
+        self.ynodes = data["repeat"]["vertical"]["amount"]
+        self.yspacing_factor = data["repeat"]["vertical"]["spacing"]
 
         # Output
         self.output_file_name = self._file_naming(data, output_dir)
@@ -108,7 +108,11 @@ class SVGmaker:
         xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
         xml_str += '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
         xml_str += (
-            'width="' + str(self.width*self.xspacing_factor) + 'px" height="' + str(self.height*self.yspacing_factor) + 'px" '
+            'width="'
+            + str(self.width * self.xspacing_factor)
+            + 'px" height="'
+            + str(self.height * self.yspacing_factor)
+            + 'px" '
         )
         xml_str += 'viewBox="' + self.join_list(viewBox) + '">\r\n'
         xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
@@ -127,9 +131,9 @@ class SVGmaker:
             xml_poly = "<g>"
             for ip, p in enumerate(s[:-1]):
                 c = colours[ip]
-                 # Get HEX colours
+                # Get HEX colours
                 chex = self.rgb2hex(c[3], c[2], c[1])
-                
+
                 xml_poly += (
                     '<path d="M'
                     + " ".join("%s,%s" % tup for tup in p)
@@ -139,27 +143,31 @@ class SVGmaker:
                     + str(c[0])
                     + '"/>'
                 )
-            xml_poly += '</g>'
+            xml_poly += "</g>"
             xml_final += xml_poly
 
         return xml_final
-    
+
     def xml_poly_pattern(self, polygon, colours, broken_colours):
         """ Create polygon segments """
 
         # Loop over points and format to svg polygon
         xml_final = ""
         for idx, s in enumerate(polygon):
-            is_broken = s[-1]['broken']
+            is_broken = s["broken"]
             xml_poly = "<g>"
-            for ip, p in enumerate(s[:-1]):
+            poly = s["polygon"]
+            if is_broken is False:
+                poly = s["polygon"][:-1]
+
+            for ip, p in enumerate(poly):
                 c = colours[ip]
-                 # Get HEX colours
+                # Get HEX colours
                 chex = self.rgb2hex(c[3], c[2], c[1])
                 if is_broken is True:
                     c = broken_colours[ip]
                     chex = self.rgb2hex(c[3], c[2], c[1])
-                
+
                 xml_poly += (
                     '<path d="M'
                     + " ".join("%s,%s" % tup for tup in p)
@@ -169,7 +177,7 @@ class SVGmaker:
                     + str(c[0])
                     + '"/>'
                 )
-            xml_poly += '</g>'
+            xml_poly += "</g>"
             xml_final += xml_poly
 
         return xml_final
@@ -207,11 +215,10 @@ class SVGmaker:
             pattern_list[iy] = ix_list
 
         # Broken Total Factor in pattern
-        if not br['factor']:
-            raise Exception(
-                "The broken factor was not specified."
-            )
-        btf = round(br['factor'] * (hz["amount"] * vt["amount"]))
+        print(br["factor"])
+        if not br["factor"] and br["factor"] < 0:
+            raise Exception("The broken factor was not specified.")
+        btf = round(br["factor"] * (hz["amount"] * vt["amount"]))
 
         # Somewhat equally distributed random items to break in pattern per line
         broken_polygons = [

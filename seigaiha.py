@@ -13,8 +13,9 @@ import math
 from pathlib import Path
 from src.banner import cli_banner
 from src.args import FileDirectoryCheck, files_in_dir
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon, Point
 from shapely import affinity
+from shapely.ops import unary_union
 from src.svg import SVGmaker
 from src.general import (
     read_json,
@@ -24,6 +25,7 @@ from src.general import (
 )
 from itertools import cycle
 from rich import print
+import matplotlib.pyplot as plt
 
 
 def cli_args():
@@ -333,59 +335,124 @@ def main():
             if pattern:
                 # Init pattern
                 svg_str_pattern = SVG.xml_init_pattern()
-                
+
                 # Check broken
                 broken_pattern = data["repeat"]["broken"]
-                
-                if not all(key in broken_pattern for key in ('factor', 'fractions', 'colours')):
+
+                if not all(
+                    key in broken_pattern for key in ("factor", "fractions", "colours")
+                ):
                     raise Exception(
                         "Not all necessary keys `factor`, `fractions` and `colours` for broken pattern are specified."
                     )
-                    
-                if broken_pattern['fractions'] >= fractions:
+
+                if broken_pattern["fractions"] >= fractions:
                     raise Exception(
                         "The `fractions` key for broken pattern can not be equal or larger than the main `fractions` key."
                     )
-                    
-                if len(broken_pattern['colours']) != broken_pattern['fractions']:
+
+                if len(broken_pattern["colours"]) != broken_pattern["fractions"]:
                     raise Exception(
                         "The amount of colours for the broken pattern has to be the same as specified broken `fractions`."
                     )
-                    
+
                 # Colours to tuple
-                broken_colours = reverse_colours([tuple(el.values()) for el in broken_pattern['colours']])
+                broken_colours = reverse_colours(
+                    [tuple(el.values()) for el in broken_pattern["colours"]]
+                )
 
                 # Create pattern setup
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
 
                 # Create copies of the initial "single" polygon and translate conform pattern
-                pattern_polygons_coords = []
+                pattern_polygons_objects = []
                 for idx, row in enumerate(svg_pattern):
-                    pattern_polygons_coords.append([])
-                    polygons_row = []
+                    pattern_polygons_objects.append([])
+                    polygons_row_objects = []
                     for ix, xl in enumerate(row):
                         xp = xl[0]
                         yp = xl[1]
                         broken = xl[2]["broken"]
-                        single_polygon = polygon_objs
                         if broken is True:
-                            single_polygon = polygon_objs[:broken_pattern['fractions']]
+                            single_polygon = polygon_objs[: broken_pattern["fractions"]]
+                        else:
+                            single_polygon = polygon_objs
 
+                        transformed_polygon = [
+                            affinity.translate(p, xp, yp) for p in single_polygon
+                        ]
 
-                        single_polygon_coords = get_polygon_coords(
-                            [affinity.translate(p, xp, yp) for p in single_polygon]
+                        polygons_row_objects.append(
+                            {"polygon": transformed_polygon, "broken": broken}
                         )
-                        
-                        single_polygon_coords.append(xl[2])
-                        polygons_row.append(
-                            single_polygon_coords
+
+                    pattern_polygons_objects[idx] = polygons_row_objects
+
+                # plt.plot(*pattern_polygons_objects[0][0]['polygon'][0].exterior.coords.xy)
+                # plt.show()
+
+                pattern_polygons_objects_copy = pattern_polygons_objects.copy()
+                first_polygon_bounds = pattern_polygons_objects[0][0]["polygon"][
+                    0
+                ].bounds
+                last_polygon_bounds = pattern_polygons_objects[-1][-1]["polygon"][
+                    -1
+                ].bounds
+
+                polygon_width = first_polygon_bounds[2] - first_polygon_bounds[0]
+                polygon_height = first_polygon_bounds[3] - first_polygon_bounds[1]
+
+                pattern_container = [
+                    (
+                        first_polygon_bounds[0] + (polygon_width / 2),
+                        first_polygon_bounds[1] + (polygon_height / 2),
+                    ),
+                    (
+                        first_polygon_bounds[0] + (polygon_width / 2),
+                        last_polygon_bounds[3] - (polygon_height / 2),
+                    ),
+                    (
+                        last_polygon_bounds[2] - (polygon_width / 2),
+                        last_polygon_bounds[3] - (polygon_height / 2),
+                    ),
+                    (
+                        last_polygon_bounds[2] - (polygon_width / 2),
+                        first_polygon_bounds[1] + (polygon_height / 2),
+                    ),
+                ]
+                pattern_polygon_container = Polygon(pattern_container)
+
+                pattern_polygon_coordinates = []
+                for idx, row in enumerate(pattern_polygons_objects):
+                    pattern_polygon_coordinates.append([])
+                    polygons_row_new = []
+                    for idy, col in enumerate(row):
+                        for idp, spol in enumerate(col["polygon"]):
+                            intersect = spol.intersection(pattern_polygon_container)
+                            if not intersect.is_empty:
+                                pattern_polygons_objects_copy[idx][idy]["polygon"][
+                                    idp
+                                ] = intersect
+                                # plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
+
+                        single_polygon_coords_new = get_polygon_coords(
+                            pattern_polygons_objects_copy[idx][idy]["polygon"]
+                        )
+                        polygons_row_new.append(
+                            {
+                                "polygon": single_polygon_coords_new,
+                                "broken": pattern_polygons_objects[idx][idy]["broken"],
+                            }
                         )
 
-                    pattern_polygons_coords[idx] = polygons_row
+                    pattern_polygon_coordinates[idx] = polygons_row_new
+
+                # plt.show()
+                # return [colours_format, polygon_objs, pattern_polygons_objects, pattern_polygon_coordinates]
 
                 # Create the actual pattern;
                 svg_poly_pattern = SVG.xml_create_pattern(
-                    pattern_polygons_coords, colours_format, broken_colours
+                    pattern_polygon_coordinates, colours_format, broken_colours
                 )
                 svg_finalized_pattern = svg_str_pattern.replace(
                     SVG.poly_placeholder, svg_poly_pattern["string"]
