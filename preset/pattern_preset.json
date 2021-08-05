@@ -1,33 +1,45 @@
 {
     "width": 5000,
-    "fractions": 7,
+    "fractions": 8,
     "edges": 9,
     "spacing": 0.3,
     "rotation": 0,
     "pattern": true,
     "repeat": {
         "horizontal":{
-            "amount": 10,
+            "amount": 50,
             "spacing": 1
         },
         "vertical":{
-            "amount": 10,
+            "amount": 50,
             "spacing": 0.25
         },
         "broken":{
-            "factor": 0.1,
-            "fractions": 2,
+            "factor": 0.15,
+            "fractions": 4,
             "colours":[
                 {
-                    "R": 36,
-                    "G": 74,
-                    "B": 156,
+                    "R": 0,
+                    "G": 0,
+                    "B": 0,
                     "A": 1
                 },
                 {
-                    "R": 255,
+                    "R": 0,
                     "G": 0,
                     "B": 0,
+                    "A": 1
+                },
+                {
+                    "R": 0,
+                    "G": 0,
+                    "B": 0,
+                    "A": 1
+                },
+                {
+                    "R": 200,
+                    "G": 191,
+                    "B": 231,
                     "A": 1
                 }
             ]
@@ -35,17 +47,16 @@
         "alternate": 1
     },    
     "colours":[
-
         {
-            "R": 36,
-            "G": 74,
-            "B": 156,
+            "R": 0,
+            "G": 0,
+            "B": 0,
             "A": 1
         },
         {
-            "R": 252,
-            "G": 202,
-            "B": 86,
+            "R": 85,
+            "G": 0,
+            "B": 170,
             "A": 1
         }
     ]

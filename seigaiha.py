@@ -26,6 +26,7 @@ from src.general import (
 from itertools import cycle
 from rich import print
 import matplotlib.pyplot as plt
+from shapely import wkt
 
 
 def cli_args():
@@ -186,7 +187,13 @@ def get_polygon_coords(polygons):
     """ Get coordinates from given polygon(s) (without loop) """
 
     if type(polygons) is list:
-        return [list(v.exterior.coords)[:-1] for v in polygons]
+        coordinates = []
+        for v in polygons:
+            if type(v) is Point:
+                coordinates.append(v.coords[:-1])
+            else:
+                coordinates.append(v.exterior.coords[:-1])
+        return coordinates
 
     return list(polygons.exterior.coords)[:-1]
 
@@ -388,9 +395,6 @@ def main():
 
                     pattern_polygons_objects[idx] = polygons_row_objects
 
-                # plt.plot(*pattern_polygons_objects[0][0]['polygon'][0].exterior.coords.xy)
-                # plt.show()
-
                 pattern_polygons_objects_copy = pattern_polygons_objects.copy()
                 first_polygon_bounds = pattern_polygons_objects[0][0]["polygon"][
                     0
@@ -409,32 +413,41 @@ def main():
                     ),
                     (
                         first_polygon_bounds[0] + (polygon_width / 2),
-                        last_polygon_bounds[3] - (polygon_height / 2),
+                        last_polygon_bounds[3],
                     ),
                     (
-                        last_polygon_bounds[2] - (polygon_width / 2),
-                        last_polygon_bounds[3] - (polygon_height / 2),
+                        last_polygon_bounds[2],
+                        last_polygon_bounds[3],
                     ),
                     (
-                        last_polygon_bounds[2] - (polygon_width / 2),
+                        last_polygon_bounds[2],
                         first_polygon_bounds[1] + (polygon_height / 2),
                     ),
                 ]
                 pattern_polygon_container = Polygon(pattern_container)
+                # print(pattern_polygon_container.exterior.coords.xy)
 
                 pattern_polygon_coordinates = []
+                is_empty_counter = 0
                 for idx, row in enumerate(pattern_polygons_objects):
                     pattern_polygon_coordinates.append([])
                     polygons_row_new = []
                     for idy, col in enumerate(row):
                         for idp, spol in enumerate(col["polygon"]):
+                            #print(spol.exterior.coords.xy)
                             intersect = spol.intersection(pattern_polygon_container)
+                            intersect2 = (spol & pattern_polygon_container).wkt
+                            #print(intersect2)
                             if not intersect.is_empty:
                                 pattern_polygons_objects_copy[idx][idy]["polygon"][
                                     idp
                                 ] = intersect
-                                # plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
+                            else:
+                                is_empty_counter += 1
+                                
+                            #plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
 
+                                
                         single_polygon_coords_new = get_polygon_coords(
                             pattern_polygons_objects_copy[idx][idy]["polygon"]
                         )
@@ -444,11 +457,14 @@ def main():
                                 "broken": pattern_polygons_objects[idx][idy]["broken"],
                             }
                         )
+                                
+                        # print(pattern_polygons_objects[idx][idy]['polygon'][idp])
+                        #plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
 
                     pattern_polygon_coordinates[idx] = polygons_row_new
 
-                # plt.show()
-                # return [colours_format, polygon_objs, pattern_polygons_objects, pattern_polygon_coordinates]
+                # print('is empty: {}'.format(is_empty_counter))
+                #plt.show()
 
                 # Create the actual pattern;
                 svg_poly_pattern = SVG.xml_create_pattern(
@@ -465,6 +481,8 @@ def main():
                         SVG.save_png(svg_finalized_pattern),
                     )
                 )
+                
+                return [pattern_container, pattern_polygon_container, pattern_polygons_objects, pattern_polygon_coordinates]
 
 
 if __name__ == "__main__":

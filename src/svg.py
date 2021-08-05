@@ -215,7 +215,6 @@ class SVGmaker:
             pattern_list[iy] = ix_list
 
         # Broken Total Factor in pattern
-        print(br["factor"])
         if not br["factor"] and br["factor"] < 0:
             raise Exception("The broken factor was not specified.")
         btf = round(br["factor"] * (hz["amount"] * vt["amount"]))
