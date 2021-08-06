@@ -27,7 +27,7 @@ from itertools import cycle
 from rich import print
 import matplotlib.pyplot as plt
 from shapely import wkt
-
+import sys
 
 def cli_args():
     """
@@ -144,7 +144,7 @@ def check_args(presets, outputs):
     return batch
 
 
-def get_polygon_points(numSides, x, y, side_length):
+def get_polygon_points(numSides, width):
     """
     Polygon points
 
@@ -165,10 +165,13 @@ def get_polygon_points(numSides, x, y, side_length):
         DESCRIPTION.
 
     """
+    
+    # Starting point and radius are based on half width
+    radius = width / 2
     pts = []
-    for i in range(numSides):
-        x = x + side_length * math.cos(math.pi * 2 * i / numSides)
-        y = y + side_length * math.sin(math.pi * 2 * i / numSides)
+    for k in range(numSides):
+        x = radius + (radius * math.cos(((2 * math.pi * k) / numSides) + (1/2 * math.pi)))
+        y = radius + (radius * math.sin(((2 * math.pi * k) / numSides) + (1/2 * math.pi)))
         pts.append((x, y))
 
     return pts
@@ -219,39 +222,81 @@ def reverse_colours(colours: list):
 
     return [c[::-1] for c in colours]
 
+def translate_polygon(polygon: Polygon, x_direction: float, y_direction: float):
+    return affinity.translate(polygon, x_direction, y_direction)
 
+def rotate_polygon(polygon: Polygon, rotation: int):
+    return affinity.rotate(polygon, rotation, origin="centroid")
+
+def scale_polygon(polygon: Polygon, user_width: int):
+    rescale_initial_factor = user_width/polyg.bounds[2]
+    polyg = affinity.scale(polyg, xfact=rescale_initial_factor, yfact=rescale_initial_factor, origin='center')
+    return affinity.scale(polygon, xfact=)
+
+def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5):
+    if(value < (round(value) + limit)):
+        return round(value)
+
+    return value
+
+def get_polygon_bounds(polygon: Polygon):
+    return polygon.bounds
+
+def get_polygon_box_dimensions(x1: float, y1: float, x2: float, y2: float):
+    return {
+        "width": max([x1, x2]) - min([x1, x2]),
+        "height": max([y1, y2]) - min([y1, y2]),
+    }
+    
+    
 def create_polygon(
     poly_edges, poly_fractions, poly_colours, poly_width, spacing=0.5, poly_rotation=0
 ):
     """ Create a single polygon """
 
-    # Polygon image width
-    pw = poly_width / 2
-
     # Get polygon points
-    all_points = get_polygon_points(poly_edges, pw, pw, pw)
+    all_points = get_polygon_points(poly_edges, poly_width)
 
     # Get polygon object
     polyg = get_polygon_object(all_points)
 
-    # Retreive polygon boundary box coordinates
-    x1, y1, x2, y2 = polyg.bounds
-    box_dims = {
-        "width": max([x1, x2]) - min([x1, x2]),
-        "height": max([y1, y2]) - min([y1, y2]),
-    }
+    # Retrieve polygon boundary box coordinates
+    x1, y1, x2, y2 = get_polygon_bounds(polyg)
+    boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
 
     # Rotate
     if poly_rotation != 0:
-        polyg = affinity.rotate(polyg, poly_rotation, origin="centroid")
-        x1, y1, x2, y2 = polyg.bounds
-        box_dims = {
-            "width": max([x1, x2]) - min([x1, x2]),
-            "height": max([y1, y2]) - min([y1, y2]),
-        }
-
+        # Rotate
+        polyg = rotate_polygon(polyg, poly_rotation)
+        x1, y1, x2, y2 = get_polygon_bounds(polyg)
+        boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
+        
+        # Retranslate
+        polyg = translate_polygon(polyg, -x1, -y1)
+        
+    # Check if needs rescaling and translating
+    if(check_polygon_boundary_limit(x1) != 0 
+       or check_polygon_boundary_limit(y1) != 0 
+       or check_polygon_boundary_limit(x2) != poly_width
+    ):
+        # TODO: Scale and retranslate to be sure
+        
+    x1, y1, x2, y2 = get_polygon_bounds(polyg)
+    boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
+    
+    plt.plot(*zip(*all_points), 'bo')
+    plt.show()
+    print(boundary_box, polyg.bounds)
+    sys.exit()
+    # Rescale to user specified width
+    rescale_initial_factor = poly_width/polyg.bounds[2]
+    polyg = affinity.scale(polyg, xfact=rescale_initial_factor, yfact=rescale_initial_factor, origin='center')
+    
     # Translate
+    x1, y1, x2, y2 = polyg.bounds
     polyg = affinity.translate(polyg, -x1, -y1)
+    
+
 
     # Get center coordinates of polygon
     px_center = polyg.centroid.x

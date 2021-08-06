@@ -1,9 +1,9 @@
 {
     "width": 5000,
     "fractions": 8,
-    "edges": 9,
+    "edges": 12,
     "spacing": 0.3,
-    "rotation": 0,
+    "rotation": 30,
     "pattern": true,
     "repeat": {
         "horizontal":{
