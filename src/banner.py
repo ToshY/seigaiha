@@ -11,10 +11,10 @@ from rich import print
 
 
 def cli_banner(
-    current_file: str, banner_font: str = "isometric3", banner_width: int = 200
+        current_file: str, banner_font: str = "isometric3", banner_width: int = 200
 ) -> None:
     """
-    CLI banner
+    CLI banner.
 
     Parameters
     ----------
@@ -28,7 +28,6 @@ def cli_banner(
     Returns
     -------
     None.
-
     """
     banner = pyfiglet.figlet_format(
         Path(current_file).stem, font=banner_font, width=banner_width

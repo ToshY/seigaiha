@@ -1,23 +1,23 @@
 {
-    "width": 5000,
-    "fractions": 8,
-    "edges": 12,
+    "width": 2500,
+    "fractions": 5,
+    "edges": 7,
     "spacing": 0.3,
-    "rotation": 30,
+    "rotation": 0,
     "pattern": true,
     "repeat": {
-        "horizontal":{
-            "amount": 50,
+        "horizontal": {
+            "amount": 100,
             "spacing": 1
         },
-        "vertical":{
-            "amount": 50,
+        "vertical": {
+            "amount": 200,
             "spacing": 0.25
         },
-        "broken":{
+        "broken": {
             "factor": 0.15,
             "fractions": 4,
-            "colours":[
+            "colours": [
                 {
                     "R": 0,
                     "G": 0,
@@ -45,8 +45,8 @@
             ]
         },
         "alternate": 1
-    },    
-    "colours":[
+    },
+    "colours": [
         {
             "R": 0,
             "G": 0,

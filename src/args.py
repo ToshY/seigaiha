@@ -14,17 +14,17 @@ install()
 
 def current_working_dir():
     """
-    Get current working directory.
+    Returns the current working directory.
 
     Returns
     -------
-    Path.
+    Path
     """
 
     return Path(__file__).cwd()
 
 
-def files_in_dir(file_path, file_types=["*.json"]):
+def files_in_directory(file_path, file_types=None):
     """
     Get the files in the specified directory.
 
@@ -33,18 +33,19 @@ def files_in_dir(file_path, file_types=["*.json"]):
     file_path : str
         Path of input directory.
     file_types : list, optional
-        Allowed extension to look for. The default is ['*.mkv'].
+        Allowed extension to look for. The default is ['*.json'].
 
     Returns
     -------
-    flist : list
+    list
         List of Path objects in specified directory.
 
     """
 
-    flist = [f for f_ in [Path(file_path).rglob(e) for e in file_types] for f in f_]
+    if file_types is None:
+        file_types = ["*.json"]
 
-    return flist
+    return [f for f_ in [Path(file_path).rglob(e) for e in file_types] for f in f_]
 
 
 class FileDirectoryCheck(argparse.Action):
@@ -75,7 +76,7 @@ class FileDirectoryCheck(argparse.Action):
 
         Returns
         -------
-        None.
+        None
 
         """
         all_values = []

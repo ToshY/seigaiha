@@ -8,26 +8,17 @@ Seigaiha SVG pattern maker
 """
 
 import argparse
-import numpy as np
 import math
 from pathlib import Path
 from src.banner import cli_banner
-from src.args import FileDirectoryCheck, files_in_dir
-from shapely.geometry import Polygon, MultiPolygon, Point
+from src.args import FileDirectoryCheck, files_in_directory
+from shapely.geometry import Polygon, Point, mapping
 from shapely import affinity
-from shapely.ops import unary_union
 from src.svg import SVGmaker
-from src.general import (
-    read_json,
-    remove_empty_dict_values,
-    dict_to_list,
-    split_list_of_dicts_by_key,
-)
+from src.general import read_json
 from itertools import cycle
 from rich import print
-import matplotlib.pyplot as plt
-from shapely import wkt
-import sys
+
 
 def cli_args():
     """
@@ -65,13 +56,14 @@ def cli_args():
     args = parser.parse_args()
 
     # Check args count
-    user_args = check_args(args.preset, args.output)
+    user_args = input_arguments(args.preset, args.output)
 
     return user_args
 
 
-def check_args(presets, outputs):
+def input_arguments(presets, outputs):
     """
+    TODO: recheck and clean up.
     Check the amount of input arguments, outputs and presets.
 
     Parameters
@@ -108,7 +100,7 @@ def check_args(presets, outputs):
             all_files = [Path(cpath)]
             data = read_json(cpath)
         elif ptype == "directory":
-            all_files = files_in_dir(cpath)
+            all_files = files_in_directory(cpath)
             data = [read_json(fl) for fl in all_files]
 
         len_all_files_in_batch = len(all_files)
@@ -144,202 +136,310 @@ def check_args(presets, outputs):
     return batch
 
 
-def get_polygon_points(numSides, width):
+def get_polygon_points(corners: int, width: int) -> list:
     """
-    Polygon points
+    Get coordinates for the polygon.
 
     Parameters
     ----------
-    numSides : TYPE
-        DESCRIPTION.
-    x : TYPE
-        DESCRIPTION.
-    y : TYPE
-        DESCRIPTION.
-    side_length : TYPE
-        DESCRIPTION.
+    corners: int
+        Amount of corner points for the polygon.
+    width: int
+        The width/radius of the polygon.
+    Returns
+    -------
+    list
+        Points of the polygon.
+    """
+
+    radius = width / 2
+    points = []
+    for k in range(corners):
+        x = radius + (radius * math.cos(((2 * math.pi * k) / corners) - (1 / 2 * math.pi)))
+        y = radius + (radius * math.sin(((2 * math.pi * k) / corners) - (1 / 2 * math.pi)))
+        points.append((x, y))
+
+    return points
+
+
+def create_polygon_object(points: list) -> Polygon:
+    """
+    Return a Shapely polygon from points.
+
+    Parameters
+    ----------
+    points : list
+        List of coordinates to create a Shapely Polygon.
 
     Returns
     -------
-    pts : TYPE
-        DESCRIPTION.
-
+    Polygon
+        Shapely Polygon object.
     """
-    
-    # Starting point and radius are based on half width
-    radius = width / 2
-    pts = []
-    for k in range(numSides):
-        x = radius + (radius * math.cos(((2 * math.pi * k) / numSides) + (1/2 * math.pi)))
-        y = radius + (radius * math.sin(((2 * math.pi * k) / numSides) + (1/2 * math.pi)))
-        pts.append((x, y))
-
-    return pts
-
-
-def get_polygon_object(points):
-    """ Get a polygon object from given points """
-
-    if len(np.array(points).shape) > 2:
-        return [Polygon(p) for p in zip(*points)]
-
     return Polygon([[p[0], p[1]] for p in points])
 
 
-def get_polygon_coords(polygons):
-    """ Get coordinates from given polygon(s) (without loop) """
+def get_polygon_coordinates(polygon_collection) -> list:
+    """
+    Return polygon coordinates for given collection of polygons.
 
-    if type(polygons) is list:
+    Parameters
+    ----------
+    polygon_collection : list
+        A collection of Polygons.
+
+    Returns
+    -------
+    list
+        A collection of exterior coordinates of each Polygon.
+    """
+
+    if type(polygon_collection) is list:
         coordinates = []
-        for v in polygons:
-            if type(v) is Point:
-                coordinates.append(v.coords[:-1])
+        for polygon in polygon_collection:
+            if type(polygon) is Point:
+                coordinates.append(polygon.coords[:-1])
             else:
-                coordinates.append(v.exterior.coords[:-1])
+                coordinates.append(polygon.exterior.coords[:-1])
         return coordinates
 
-    return list(polygons.exterior.coords)[:-1]
+    return list(polygon_collection.exterior.coords)[:-1]
 
 
-def get_colours(polygon_list, polygon_colours):
-    """ Get alternating colours for polygon filling """
+def get_colours(polygon_collection: list, polygon_colours: list):
+    """
+    Get alternating colours for polygon filling.
 
-    bgr = reverse_colours(polygon_colours)
+    Parameters
+    ----------
+    polygon_collection : list
+        A collection of Shapely Polygon objects.
+    polygon_colours : list
+        A collection of RGB colours.
+    Returns
+    -------
+    list
+        Collection of colours to patch the polygon with.
+    """
 
-    if len(bgr) < len(polygon_list):
-        colours_cycle = cycle(bgr)
-        nlb = []
-        for i in range(0, len(polygon_list)):
-            nlb.append(next(colours_cycle))
+    polygon_count = len(polygon_collection)
+    if len(polygon_colours) < polygon_count:
+        colour_cycle = cycle(polygon_colours)
+        colour_repeat_collection = []
+        for i in range(0, polygon_count):
+            colour_repeat_collection.append(next(colour_cycle))
 
-        return nlb
+        return colour_repeat_collection
 
-    return bgr
+    return polygon_colours
 
 
-def reverse_colours(colours: list):
-    """ Reverse colours in list of tuples """
+def translate_polygon(polygon: Polygon, x_direction: float, y_direction: float) -> Polygon:
+    """
+    Returns translated polygon with specified x/y offset.
 
-    return [c[::-1] for c in colours]
+    Parameters
+    ----------
+    polygon : Polygon
+        Shapely Polygon object.
+    x_direction : float
+        X offset direction.
+    y_direction : float
+        Y offset direction.
 
-def translate_polygon(polygon: Polygon, x_direction: float, y_direction: float):
+    Returns
+    -------
+    Polygon
+        DESCRIPTION.
+
+    """
     return affinity.translate(polygon, x_direction, y_direction)
 
-def rotate_polygon(polygon: Polygon, rotation: int):
+
+def rotate_polygon(polygon: Polygon, rotation: int) -> Polygon:
+    """
+    Returns rotated polygon.
+
+    Parameters
+    ----------
+    polygon : Polygon
+        Polygon to be rotated.
+    rotation : int
+        Rotation in degrees.
+
+    Returns
+    -------
+    Polygon
+        Rotated Polygon.
+    """
     return affinity.rotate(polygon, rotation, origin="centroid")
 
-def scale_polygon(polygon: Polygon, user_width: int):
-    rescale_initial_factor = user_width/polyg.bounds[2]
-    polyg = affinity.scale(polyg, xfact=rescale_initial_factor, yfact=rescale_initial_factor, origin='center')
-    return affinity.scale(polygon, xfact=)
 
-def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5):
-    if(value < (round(value) + limit)):
+def scale_polygon(polygon: Polygon, scale_factor: float) -> Polygon:
+    """
+    Returns scaled polygon with specified scale factor.
+
+    Parameters
+    ----------
+    polygon : Polygon
+        Polygon to be scaled.
+    scale_factor : float
+        Scaling factor.
+
+    Returns
+    -------
+    Polygon
+        Scaled Polygon.
+    """
+    return affinity.scale(polygon, xfact=scale_factor, yfact=scale_factor, origin='center')
+
+
+def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5) -> float:
+    """
+    Returns the checked value for polygon boundary.
+
+    Parameters
+    ----------
+    value : float
+        Value to check.
+    limit : float, optional
+        The limit to which extent it is acceptable to assume rounding issues. The default is 0.1e-5.
+    Returns
+    -------
+    float
+        The initial value, possibly rounded.
+    """
+    if value < (round(value) + limit):
         return round(value)
 
     return value
 
-def get_polygon_bounds(polygon: Polygon):
+
+def get_polygon_boundary(polygon: Polygon) -> list:
+    """
+    Returns the bounds of a polygon.
+
+    Parameters
+    ----------
+    polygon : Polygon
+        Polygon to get the boundaries.
+
+    Returns
+    -------
+    list
+        The boundaries of the Polygon.
+    """
     return polygon.bounds
 
-def get_polygon_box_dimensions(x1: float, y1: float, x2: float, y2: float):
+
+def get_polygon_dimensions(x1: float, y1: float, x2: float, y2: float) -> dict:
+    """
+
+    Parameters
+    ----------
+    x1 : float
+        X1 of Polygon.
+    y1 : float
+        Y1 of Polygon.
+    x2 : float
+        X2 of Polygon.
+    y2 : float
+        Y2 of Polygon.
+
+    Returns
+    -------
+    dict
+        Dictionary with the width and height of box which Polygon fits.
+    """
     return {
         "width": max([x1, x2]) - min([x1, x2]),
         "height": max([y1, y2]) - min([y1, y2]),
     }
-    
-    
-def create_polygon(
-    poly_edges, poly_fractions, poly_colours, poly_width, spacing=0.5, poly_rotation=0
-):
+
+
+def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_width, spacing=0.5,
+                   polygon_rotation=0):
     """ Create a single polygon """
 
     # Get polygon points
-    all_points = get_polygon_points(poly_edges, poly_width)
+    all_points = get_polygon_points(polygon_corners, polygon_width)
 
     # Get polygon object
-    polyg = get_polygon_object(all_points)
+    polygon = create_polygon_object(all_points)
 
     # Retrieve polygon boundary box coordinates
-    x1, y1, x2, y2 = get_polygon_bounds(polyg)
-    boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
+    x1, y1, x2, y2 = get_polygon_boundary(polygon)
+    boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
 
     # Rotate
-    if poly_rotation != 0:
+    if polygon_rotation != 0:
         # Rotate
-        polyg = rotate_polygon(polyg, poly_rotation)
-        x1, y1, x2, y2 = get_polygon_bounds(polyg)
-        boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
-        
-        # Retranslate
-        polyg = translate_polygon(polyg, -x1, -y1)
-        
-    # Check if needs rescaling and translating
-    if(check_polygon_boundary_limit(x1) != 0 
-       or check_polygon_boundary_limit(y1) != 0 
-       or check_polygon_boundary_limit(x2) != poly_width
-    ):
-        # TODO: Scale and retranslate to be sure
-        
-    x1, y1, x2, y2 = get_polygon_bounds(polyg)
-    boundary_box = get_polygon_box_dimensions(x1, y1, x2, y2)
-    
-    plt.plot(*zip(*all_points), 'bo')
-    plt.show()
-    print(boundary_box, polyg.bounds)
-    sys.exit()
-    # Rescale to user specified width
-    rescale_initial_factor = poly_width/polyg.bounds[2]
-    polyg = affinity.scale(polyg, xfact=rescale_initial_factor, yfact=rescale_initial_factor, origin='center')
-    
-    # Translate
-    x1, y1, x2, y2 = polyg.bounds
-    polyg = affinity.translate(polyg, -x1, -y1)
-    
+        polygon = rotate_polygon(polygon, polygon_rotation)
+        x1, y1, x2, y2 = get_polygon_boundary(polygon)
+        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
 
+        # Retranslate
+        polygon = translate_polygon(polygon, -x1, -y1)
+
+        x1, y1, x2, y2 = get_polygon_boundary(polygon)
+        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
+
+    # Check if needs rescaling and translating
+    if (check_polygon_boundary_limit(x1) != 0 or check_polygon_boundary_limit(
+            y1) != 0 or check_polygon_boundary_limit(x2) != polygon_width):
+        # Scale
+        rescale_factor = polygon_width / boundary_box['width']
+        polygon = scale_polygon(polygon, rescale_factor)
+
+        x1, y1, x2, y2 = get_polygon_boundary(polygon)
+        polygon = translate_polygon(polygon, -x1, -y1)
+
+        x1, y1, x2, y2 = get_polygon_boundary(polygon)
+        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
 
     # Get center coordinates of polygon
-    px_center = polyg.centroid.x
-    py_center = polyg.centroid.y
+    px_center = polygon.centroid.x
+    py_center = polygon.centroid.y
 
     # Get new coordinates for all points
-    all_points = get_polygon_coords(polyg)
+    all_points = get_polygon_coordinates(polygon)
 
     # Fractions list
     if spacing is not None:
-        frcs = []
-        for i, v in enumerate(list(range(1, poly_fractions + 1))):
+        fractions = []
+        for i, v in enumerate(list(range(1, polygon_fractions + 1))):
             if (i % 2) != 0:
-                frcs.append((v / poly_fractions))
-            else:
-                vl = (v / poly_fractions) - (spacing) * 1 / poly_fractions
-                frcs.append(vl if vl <= 1 else 1)
+                fractions.append((v / polygon_fractions))
+                continue
+
+            vl = (v / polygon_fractions) - (spacing) * 1 / polygon_fractions
+            fractions.append(vl if vl <= 1 else 1)
     else:
-        frcs = [v / poly_fractions for v in list(range(1, poly_fractions + 1))]
+        fractions = [v / polygon_fractions for v in list(range(1, polygon_fractions + 1))]
 
     # Create all (sub)polygons
     vct = []
-    for el in all_points:
+    for point in all_points:
         pxl = [
-            ((px_center - el[0]) * x + el[0], (py_center - el[1]) * x + el[1])
-            for x in frcs
+            ((px_center - point[0]) * x + point[0], (py_center - point[1]) * x + point[1])
+            for x in fractions
         ]
-        vct.append([el] + pxl)
+        vct.append([point] + pxl)
 
-    # The polygons are created
-    plgns = [Polygon(elk) for elk in zip(*vct)]
+    # Create polygons
+    polygon_collection = [Polygon(elk) for elk in zip(*vct)]
 
     # If even, remove the last unnessesary entry (0 pixels)
-    if poly_fractions % 2 == 0:
-        plgns = plgns[:-1]
+    if polygon_fractions % 2 == 0:
+        polygon_collection = polygon_collection[:-1]
 
     # Get coords back
-    plgnsc = get_polygon_coords(plgns)
+    polygon_coordinates = get_polygon_coordinates(polygon_collection)
 
     # Get colours to fill
-    clrs = get_colours(plgns, poly_colours)
+    polygon_colours = get_colours(polygon_collection, polygon_colours)
 
-    return [box_dims, plgns, plgnsc, clrs]
+    return [boundary_box, polygon_collection, polygon_coordinates, polygon_colours]
 
 
 def main():
@@ -364,7 +464,7 @@ def main():
             colours = [tuple(el.values()) for el in colours]
 
             # Create polygon object
-            box_dims, polygon_objs, polygon_coords, colours_format = create_polygon(
+            box_dims, polygon_objects, polygon_coords, colours_format = create_polygon(
                 edges, fractions, colours, width, spacing, rotation
             )
 
@@ -392,26 +492,24 @@ def main():
                 broken_pattern = data["repeat"]["broken"]
 
                 if not all(
-                    key in broken_pattern for key in ("factor", "fractions", "colours")
+                        key in broken_pattern for key in ("factor", "fractions", "colours")
                 ):
                     raise Exception(
-                        "Not all necessary keys `factor`, `fractions` and `colours` for broken pattern are specified."
+                        "Not all necessary keys `factor`, `fractions` and `colours` for broken "
+                        "pattern are specified."
                     )
 
                 if broken_pattern["fractions"] >= fractions:
                     raise Exception(
-                        "The `fractions` key for broken pattern can not be equal or larger than the main `fractions` key."
+                        "The `fractions` key for broken pattern can not be equal or larger than "
+                        "the main `fractions` key."
                     )
 
                 if len(broken_pattern["colours"]) != broken_pattern["fractions"]:
                     raise Exception(
-                        "The amount of colours for the broken pattern has to be the same as specified broken `fractions`."
+                        "The amount of colours for the broken pattern has to be the same as "
+                        "specified broken `fractions`."
                     )
-
-                # Colours to tuple
-                broken_colours = reverse_colours(
-                    [tuple(el.values()) for el in broken_pattern["colours"]]
-                )
 
                 # Create pattern setup
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
@@ -426,9 +524,9 @@ def main():
                         yp = xl[1]
                         broken = xl[2]["broken"]
                         if broken is True:
-                            single_polygon = polygon_objs[: broken_pattern["fractions"]]
+                            single_polygon = polygon_objects[: broken_pattern["fractions"]]
                         else:
-                            single_polygon = polygon_objs
+                            single_polygon = polygon_objects
 
                         transformed_polygon = [
                             affinity.translate(p, xp, yp) for p in single_polygon
@@ -479,21 +577,16 @@ def main():
                     polygons_row_new = []
                     for idy, col in enumerate(row):
                         for idp, spol in enumerate(col["polygon"]):
-                            #print(spol.exterior.coords.xy)
                             intersect = spol.intersection(pattern_polygon_container)
                             intersect2 = (spol & pattern_polygon_container).wkt
-                            #print(intersect2)
                             if not intersect.is_empty:
                                 pattern_polygons_objects_copy[idx][idy]["polygon"][
                                     idp
                                 ] = intersect
                             else:
                                 is_empty_counter += 1
-                                
-                            #plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
 
-                                
-                        single_polygon_coords_new = get_polygon_coords(
+                        single_polygon_coords_new = get_polygon_coordinates(
                             pattern_polygons_objects_copy[idx][idy]["polygon"]
                         )
                         polygons_row_new.append(
@@ -502,18 +595,12 @@ def main():
                                 "broken": pattern_polygons_objects[idx][idy]["broken"],
                             }
                         )
-                                
-                        # print(pattern_polygons_objects[idx][idy]['polygon'][idp])
-                        #plt.plot(*pattern_polygons_objects[idx][idy]['polygon'][idp].exterior.coords.xy)
 
                     pattern_polygon_coordinates[idx] = polygons_row_new
 
-                # print('is empty: {}'.format(is_empty_counter))
-                #plt.show()
-
-                # Create the actual pattern;
+                # Create the actual pattern
                 svg_poly_pattern = SVG.xml_create_pattern(
-                    pattern_polygon_coordinates, colours_format, broken_colours
+                    pattern_polygon_coordinates, colours_format
                 )
                 svg_finalized_pattern = svg_str_pattern.replace(
                     SVG.poly_placeholder, svg_poly_pattern["string"]
@@ -526,8 +613,9 @@ def main():
                         SVG.save_png(svg_finalized_pattern),
                     )
                 )
-                
-                return [pattern_container, pattern_polygon_container, pattern_polygons_objects, pattern_polygon_coordinates]
+
+                return [pattern_container, pattern_polygon_container, pattern_polygons_objects,
+                        pattern_polygon_coordinates]
 
 
 if __name__ == "__main__":
