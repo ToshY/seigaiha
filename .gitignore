@@ -13,7 +13,7 @@ src/__pycache__
 src/.pylind.d
 
 #output
-out/
+output/
 
 #preset
 preset/

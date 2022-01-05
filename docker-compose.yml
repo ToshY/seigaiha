@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./output:/app/output
+      - ./preset:/app/preset

@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+.spyproject
+.idea
+output/
+preset/
+Makefile
+.dockerignore
+Dockerfile
+docker-compose.yml
