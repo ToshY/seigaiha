@@ -1,6 +1,6 @@
 # 🌊 Seigaiha
 
-Seigaiha (kanji: 清海波 ; hiragana: せいがいは) is a (traditional) Japanese pattern of blue waves.
+Seigaiha (kanji: 清海波 ; hiragana: せいがいは) is a traditional Japanese pattern of blue waves.
 
 ## Introduction
 This python command line tool is made to create your own custom traditional or modern wave patterns through simple JSON presets.
@@ -8,8 +8,6 @@ This python command line tool is made to create your own custom traditional or m
 ## Setup
 
 ### 🐋 Docker Compose
-
-Up!
 
 ```shell
 make up
