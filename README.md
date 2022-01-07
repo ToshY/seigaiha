@@ -15,7 +15,7 @@ Up!
 make up
 ```
 
-### ⌨️ Standard
+### 🐍 Standard
 Install the requirements with `pip`
 ```shell
 pip install -r requirements.txt
@@ -44,7 +44,7 @@ make seigaiha preset="preset/pattern_preset.json" output="output"
 
 The volume is mounted as `./output:/app/output`, which can be changed by editing the `docker-compose.yml` file to fit the user preferences.
 
-### ⌨️ Standard
+### 🐍 Standard
 ```shell
 python seigaiha.py -p preset/pattern_preset.json -o output
 ```
