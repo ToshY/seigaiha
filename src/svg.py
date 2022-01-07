@@ -114,26 +114,17 @@ class SVGmaker:
 
         return xml_str
 
-    def xml_poly(self, polygon: list, colours: list, pattern: bool = False):
+    def xml_poly(self, polygon: list):
         """ Create polygon segments """
 
         xml_final = ''
         for idx, part in enumerate(polygon):
             xml_poly = "<g>"
-
-            is_broken = False
-            poly = part
-            if pattern is True:
-                is_broken = part["broken"]
-                poly = part["polygon"]
-                if is_broken is False:
-                    poly = part["polygon"][:-1]
+            poly = part["polygon"]
+            colours = part['colour']
 
             for ip, poly_slice in enumerate(poly):
                 hex_colour = self.rgb2hex(colours[ip][0], colours[ip][1], colours[ip][2])
-                if is_broken is True:
-                    hex_colour = self.rgb2hex(colours[ip][0], colours[ip][1], colours[ip][2])
-
                 xml_poly += '<path d="M' + " ".join(
                     "%s,%s" % tup for tup in
                     poly_slice) + 'Z" fill="' + hex_colour + '" fill-opacity="' + str(
@@ -197,10 +188,10 @@ class SVGmaker:
         # Pattern list to fill polygons with
         return pattern_list
 
-    def xml_create_pattern(self, polygons: list, colours: list):
+    def xml_create_pattern(self, polygons: list):
         xml_pattern = []
         for p in polygons:
-            xml_pattern.append(self.xml_poly(p, colours, True))
+            xml_pattern.append(self.xml_poly(p))
 
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 

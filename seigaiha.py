@@ -376,7 +376,6 @@ def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_
         # Rotate
         polygon = rotate_polygon(polygon, polygon_rotation)
         x1, y1, x2, y2 = get_polygon_boundary(polygon)
-        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
 
         # Retranslate
         polygon = translate_polygon(polygon, -x1, -y1)
@@ -429,7 +428,7 @@ def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_
     # Create polygons
     polygon_collection = [Polygon(elk) for elk in zip(*vct)]
 
-    # If even, remove the last unnessesary entry (0 pixels)
+    # If even, remove the last unnecessary entry (0 pixels)
     if polygon_fractions % 2 == 0:
         polygon_collection = polygon_collection[:-1]
 
@@ -473,7 +472,11 @@ def main():
 
             # Create single SVG string
             svg_str = SVG.xml_init()
-            svg_poly = SVG.xml_poly([polygon_coords], colours_format)
+            svg_poly = SVG.xml_poly([{
+                "polygon": polygon_coords,
+                "broken": False,
+                "colour": colours_format
+            }])
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
 
             # Save and print
@@ -514,6 +517,11 @@ def main():
                 # Create pattern setup
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
 
+                # Prepare broken polygon and colours
+                broken_polygon = polygon_objects[:broken_pattern["fractions"]]
+                broken_colours_tuple = [tuple(el.values()) for el in broken_pattern["colours"]]
+                broken_colours_format = get_colours(broken_polygon, broken_colours_tuple)
+
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_objects = []
                 for idx, row in enumerate(svg_pattern):
@@ -522,9 +530,9 @@ def main():
                     for ix, xl in enumerate(row):
                         xp = xl[0]
                         yp = xl[1]
-                        broken = xl[2]["broken"]
-                        if broken is True:
-                            single_polygon = polygon_objects[: broken_pattern["fractions"]]
+                        is_broken = xl[2]["broken"]
+                        if is_broken is True:
+                            single_polygon = broken_polygon
                         else:
                             single_polygon = polygon_objects
 
@@ -533,7 +541,10 @@ def main():
                         ]
 
                         polygons_row_objects.append(
-                            {"polygon": transformed_polygon, "broken": broken}
+                            {
+                                "polygon": transformed_polygon,
+                                "broken": is_broken
+                            }
                         )
 
                     pattern_polygons_objects[idx] = polygons_row_objects
@@ -568,7 +579,6 @@ def main():
                     ),
                 ]
                 pattern_polygon_container = Polygon(pattern_container)
-                # print(pattern_polygon_container.exterior.coords.xy)
 
                 pattern_polygon_coordinates = []
                 is_empty_counter = 0
@@ -578,7 +588,6 @@ def main():
                     for idy, col in enumerate(row):
                         for idp, spol in enumerate(col["polygon"]):
                             intersect = spol.intersection(pattern_polygon_container)
-                            intersect2 = (spol & pattern_polygon_container).wkt
                             if not intersect.is_empty:
                                 pattern_polygons_objects_copy[idx][idy]["polygon"][
                                     idp
@@ -589,19 +598,20 @@ def main():
                         single_polygon_coords_new = get_polygon_coordinates(
                             pattern_polygons_objects_copy[idx][idy]["polygon"]
                         )
+
+                        is_broken = pattern_polygons_objects[idx][idy]["broken"]
                         polygons_row_new.append(
                             {
                                 "polygon": single_polygon_coords_new,
-                                "broken": pattern_polygons_objects[idx][idy]["broken"],
+                                "broken": is_broken,
+                                "colour": colours_format if not is_broken else broken_colours_format
                             }
                         )
 
                     pattern_polygon_coordinates[idx] = polygons_row_new
 
                 # Create the actual pattern
-                svg_poly_pattern = SVG.xml_create_pattern(
-                    pattern_polygon_coordinates, colours_format
-                )
+                svg_poly_pattern = SVG.xml_create_pattern(pattern_polygon_coordinates)
                 svg_finalized_pattern = svg_str_pattern.replace(
                     SVG.poly_placeholder, svg_poly_pattern["string"]
                 )
