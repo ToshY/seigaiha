@@ -1,0 +1,50 @@
+version: '3'
+
+vars:
+  NAME: seigaiha
+
+env:
+  UID:
+    sh: id -u
+  GID:
+    sh: id -g
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  cs:check:
+    desc: Run pylint & pycodestyle
+    cmds:
+      - task: docker:up
+      - docker compose run --rm {{.NAME}} pylint --recursive=y . **/*.py
+      - docker compose run --rm {{.NAME}} pycodestyle --max-line-length=120 **/*.py
+
+  cs:fix:
+    desc: Run black
+    cmds:
+      - task: docker:up
+      - docker compose run --rm {{.NAME}} black .
+
+  docker:up:
+    desc: Build image and run service (detached)
+    cmds:
+      - docker compose up -d {{.CLI_ARGS | default "--remove-orphans"}}
+
+  docker:login:
+    desc: Login to container
+    cmds:
+      - docker compose run --rm {{.NAME}} /bin/bash
+
+  docker:down:
+    desc: Stop and remove service
+    cmds:
+      - docker compose down {{.CLI_ARGS | default "--rmi local --remove-orphans"}}
+
+  seigaiha:
+    desc: Create seigaiha pattern from JSON preset file or string
+    vars:
+      PRESET: '{{.p | default "default.json"}}'
+    cmds:
+      - docker compose run --rm {{.NAME}} python seigaiha.py -p '{{.PRESET}}'

@@ -1,19 +1,10 @@
-# PyCharm project settings
-.idea/
+# Cache
+**/__pycache__
 
-# Spyder project settings
-.spyproject
-.spyderproject
-
-# pycache
-src/__pycache__
-
-# pylint
-.pylind.d
-src/.pylind.d
-
-#output
-output/
-
-#preset
+# Application
 preset/
+output/*.[ps][nv]g
+!/**/.gitkeep
+
+# Docker
+docker-compose.override.yml

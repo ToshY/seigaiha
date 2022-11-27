@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Dec  12 20:52:08 2020
-
-@author: ToshY
-"""
 
 import collections
 import functools
 import json
 
 
-def read_file(input_file: str, split_lines: bool = True, custom_encoding: str = "latin-1"):
+def read_file(
+    input_file: str, split_lines: bool = True, custom_encoding: str = "latin-1"
+):
     """
     Read in file
 
@@ -37,7 +34,7 @@ def read_file(input_file: str, split_lines: bool = True, custom_encoding: str = 
     return {"content": input_file_read, "encoding": custom_encoding}
 
 
-def read_json(input_file: str) -> dict:
+def read_json_from_file(input_file: str) -> dict:
     """
     Read in JSON file.
 
@@ -56,6 +53,18 @@ def read_json(input_file: str) -> dict:
         data = json.load(json_file)
 
     return data
+
+
+def read_json_from_string(input_string: str):
+    return json.loads(input_string)
+
+
+def is_json(input_string: str) -> bool:
+    try:
+        json.loads(input_string)
+    except ValueError as e:
+        return False
+    return True
 
 
 def find_in_dict(input_list: list, key: str, value: str):
@@ -170,7 +179,7 @@ def split_list_of_dicts_by_key(list_of_dicts: list, key: str = "codec_type") -> 
     Returns
     -------
     result_list : list
-        List of dictionaries splitted by key.
+        List of dictionaries split by key.
     """
 
     result = collections.defaultdict(list)

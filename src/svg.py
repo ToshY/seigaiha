@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 22 16:29:25 2020
-
-@author: ToshY
-"""
 
 import datetime
 import random
@@ -11,11 +6,25 @@ import numpy as np
 from cairosvg import svg2png
 
 
+def _get_formatted_datetime():
+    """Get formatted datetime"""
+
+    return datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
+
+
 class SVGmaker:
     poly_placeholder = "%polygons%"
 
+    svg_desc = "Rendered with Seigaiha | https://github.com/ToshY/seigaiha"
+
     def __init__(
-            self, data, output_dir, dims, scale=1, vbox=[0, 0, -1, -1], constraint=182.25
+        self,
+        data,
+        output_directory,
+        dims,
+        scale=1,
+        vbox=[0, 0, -1, -1],
+        constraint=182.25,
     ):
         # Initial image dimensions
         self.width, self.height = dims
@@ -26,12 +35,12 @@ class SVGmaker:
         else:
             self.scale = scale / max(dims)
 
-        # Check scale does not exceed 182.5 megapixels constraint
-        mp = ((self.width * self.height) * self.scale ** 2) / 1e6
+        # Check scale does not exceed constraint
+        mp = ((self.width * self.height) * self.scale**2) / 1e6
         if mp >= constraint:
-            # Solve what scale should be for 182 MP
+            # Solve what scale should be for constraint
             self.scale = ((round(constraint) * 1e6) / (self.width * self.height)) ** (
-                    1 / 2
+                1 / 2
             )
 
         # Viewbox
@@ -55,7 +64,8 @@ class SVGmaker:
         self.yspacing_factor = data["repeat"]["vertical"]["spacing"]
 
         # Output
-        self.output_file_name = self._file_naming(data, output_dir)
+        self.output_directory = str(output_directory)
+        self.output_file_name = self._file_naming(data)
 
     def xml_init(self, shape_rendering="geometricprecision"):
         """
@@ -69,15 +79,22 @@ class SVGmaker:
         """
 
         xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
-        xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ' \
-                   '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
-        xml_str += '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" ' \
-                   'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet" '
-        xml_str += 'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
+        xml_str += (
+            '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
+            '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
+        )
+        xml_str += (
+            '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" '
+            'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet" '
+        )
+        xml_str += (
+            'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
+        )
         xml_str += 'viewBox="' + self.join_list(self.view_box) + '">\r\n'
         xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
+        xml_str += "<desc>" + self.svg_desc + "</desc>"
         xml_str += "</svg>"
 
         return xml_str
@@ -100,36 +117,53 @@ class SVGmaker:
         view_box[3] = view_box[3] / self.ynodes
 
         xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
-        xml_str += '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" ' \
-                   '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
-        xml_str += '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" ' \
-                   'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
-        xml_str += 'width="' + str(self.width * self.xspacing_factor) + 'px" height="' + str(
-            self.height * self.yspacing_factor) + 'px" '
+        xml_str += (
+            '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
+            '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
+        )
+        xml_str += (
+            '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" '
+            'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
+        )
+        xml_str += (
+            'width="'
+            + str(self.width * self.xspacing_factor)
+            + 'px" height="'
+            + str(self.height * self.yspacing_factor)
+            + 'px" '
+        )
         xml_str += 'viewBox="' + self.join_list(view_box) + '">\r\n'
         xml_str += '<g style="shape-rendering:' + shape_rendering + ';">\r\n'
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
+        xml_str += "<desc>" + self.svg_desc + "</desc>"
         xml_str += "</svg>"
 
         return xml_str
 
     def xml_poly(self, polygon: list):
-        """ Create polygon segments """
+        """Create polygon segments"""
 
-        xml_final = ''
+        xml_final = ""
         for idx, part in enumerate(polygon):
             xml_poly = "<g>"
             poly = part["polygon"]
-            colours = part['colour']
+            colours = part["colour"]
 
             for ip, poly_slice in enumerate(poly):
-                hex_colour = self.rgb2hex(colours[ip][0], colours[ip][1], colours[ip][2])
-                xml_poly += '<path d="M' + " ".join(
-                    "%s,%s" % tup for tup in
-                    poly_slice) + 'Z" fill="' + hex_colour + '" fill-opacity="' + str(
-                    colours[ip][3]) + '"/>'
-            xml_poly += '</g>'
+                hex_colour = self.rgb2hex(
+                    colours[ip][0], colours[ip][1], colours[ip][2]
+                )
+                xml_poly += (
+                    '<path d="M'
+                    + " ".join("%s,%s" % tup for tup in poly_slice)
+                    + 'Z" fill="'
+                    + hex_colour
+                    + '" fill-opacity="'
+                    + str(colours[ip][3])
+                    + '"/>'
+                )
+            xml_poly += "</g>"
             xml_final += xml_poly
 
         return xml_final
@@ -141,15 +175,21 @@ class SVGmaker:
         alternate = pattern_info["alternate"]
 
         # Standard pattern
-        xl = np.linspace(0, round(self.width * horizontal["spacing"] * horizontal["amount"]),
-                         horizontal["amount"] + 1).tolist()[:-1]
+        xl = np.linspace(
+            0,
+            round(self.width * horizontal["spacing"] * horizontal["amount"]),
+            horizontal["amount"] + 1,
+        ).tolist()[:-1]
 
         xli = xl
         if alternate >= 0:
             xli = [(v + self.xcenter) * alternate for v in xl]
 
-        yl = np.linspace(0, round(self.height * vertical["spacing"] * vertical["amount"]),
-                         vertical["amount"] + 1).tolist()[:-1]
+        yl = np.linspace(
+            0,
+            round(self.height * vertical["spacing"] * vertical["amount"]),
+            vertical["amount"] + 1,
+        ).tolist()[:-1]
 
         pattern_list = [[] for _ in yl]
         for iy in range(len(yl)):
@@ -158,14 +198,18 @@ class SVGmaker:
             if iy % 2 != 0:
                 xll = xli
             for ix in range(len(xll)):
-                ix_list.append((self.xcenter + xll[ix], self.ycenter + yl[iy], {"broken": False}))
+                ix_list.append(
+                    (self.xcenter + xll[ix], self.ycenter + yl[iy], {"broken": False})
+                )
 
             pattern_list[iy] = ix_list
 
         # Broken Total Factor in pattern
         if not broken["factor"] and broken["factor"] < 0:
             raise Exception("The broken factor was not specified.")
-        broken_total_factor = round(broken["factor"] * (horizontal["amount"] * vertical["amount"]))
+        broken_total_factor = round(
+            broken["factor"] * (horizontal["amount"] * vertical["amount"])
+        )
 
         # Somewhat equally distributed random items to break in pattern per line
         broken_polygons = [
@@ -182,7 +226,9 @@ class SVGmaker:
                 broken_hz = broken_polygons[x]
                 bk = 0
                 while bk < broken_hz:
-                    pattern_list[x][self._random_index(pattern_list[x])][-1]["broken"] = True
+                    pattern_list[x][self._random_index(pattern_list[x])][-1][
+                        "broken"
+                    ] = True
                     bk += 1
 
         # Pattern list to fill polygons with
@@ -196,10 +242,9 @@ class SVGmaker:
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 
     def save_svg(self, content):
-        """ Write string to file """
+        """Write string to file"""
 
-        ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
-        svg_file = self.output_file_name + f"_{ctime}" + ".svg"
+        svg_file = f"{self.output_directory}/{_get_formatted_datetime()}_{self.output_file_name}.svg"
         text_file = open(svg_file, "wt")
         text_file.write(content)
         text_file.close()
@@ -207,66 +252,54 @@ class SVGmaker:
         return svg_file
 
     def save_png(self, content):
-        """ Save SVG as PNG """
+        """Save SVG as PNG"""
 
-        ctime = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
-        png_file = self.output_file_name + f"_{ctime}" + ".png"
+        png_file = f"{self.output_directory}/{_get_formatted_datetime()}_{self.output_file_name}.png"
         svg2png(bytestring=content, write_to=png_file)
 
         return png_file
 
     # noinspection PyMethodMayBeStatic
     def join_list(self, x, deli=" "):
-        """ Join lists/tuples to string """
+        """Join lists/tuples to string"""
 
         return deli.join(map(str, x))
 
     def rgb2hex(self, r, g, b):
-        """ RGB to Hexadecimal """
+        """RGB to Hexadecimal"""
 
         return "#{0:02x}{1:02x}{2:02x}".format(
             self._rgbounds(r), self._rgbounds(g), self._rgbounds(b)
         )
 
     # noinspection PyMethodMayBeStatic
-    def _file_naming(self, data, output_dir):
-        """ File naming """
+    def _file_naming(self, data):
+        """File naming based on preset options"""
 
-        # Output split
-        output_path = list(output_dir.keys())[0]
-        output_type = list(output_dir.values())[0]
-
-        # Prepare output file name
-        if output_type == "directory":
-            return str(
-                output_path.joinpath(
-                    "_".join(
-                        [
-                            "{}-{}".format(k, v)
-                            for k, v in data.items()
-                            if k not in ["repeat", "colours"]
-                        ]
-                    )
-                )
-            )
-
-        return str(output_path.with_suffix(""))
+        return "_".join(
+            [
+                "{}-{}".format(k, v)
+                for k, v in data.items()
+                if k not in ["repeat", "colours"]
+            ]
+        )
 
     # noinspection PyMethodMayBeStatic
     def _rgbounds(self, x):
-        """ RGB boundaries """
+        """RGB boundaries"""
 
         return max(0, min(x, 255))
 
     # noinspection PyMethodMayBeStatic
     def _check_viewbox(self, c):
-        """ Check viewbox numerical values """
+        """Check viewbox numerical values"""
 
         vb = [s for s in c if isinstance(s, (int, float))]
         if len(vb) != len(c):
             raise Exception(
                 "Invalid viewbox specified. Please make sure that the viewbox only contains "
-                "numerical values.")
+                "numerical values."
+            )
         else:
             return vb
 

@@ -1,11 +1,14 @@
 .git
 .gitignore
 .github
-.spyproject
 .idea
 output/
-preset/
-Makefile
+docs/
+README.md
 .dockerignore
 Dockerfile
 docker-compose.yml
+**/__pycache__
+.pre-commit-config.yaml
+.task/
+Taskfile.yml

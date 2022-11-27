@@ -1,18 +1,33 @@
-name: Pylint
+name: Pylint & Pycodestyle
 
-on: [ push ]
+on:
+  push:
+    branches:
+      - main
+  pull_request_target:
+    branches:
+      - main
 
 jobs:
   pylint:
+    name: Run Pylint and Pycodestyle
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
+        uses: actions/checkout@v3
         with:
-          python-version: 3.9
+          fetch-depth: 0
 
-      - run: pip install pylint -r requirements.txt
-      - run: pylint **/*.py
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install requirements
+        run: pip install pycodestyle -r requirements.txt
+
+      - name: Pylint check
+        run: pylint **/*.py
+
+      - name: Pycodestyle check
+        run: pycodestyle --max-line-length=120 **/*.py

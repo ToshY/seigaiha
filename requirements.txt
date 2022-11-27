@@ -1,6 +1,9 @@
-Shapely==1.8.0
+Shapely==1.8.5.post1
 CairoSVG==2.5.2
-numpy==1.22.0
-matplotlib==3.5.1
+numpy==1.23.5
+matplotlib==3.6.2
 pyfiglet==0.8.post1
-rich==10.16.2
+rich==12.6.0
+pylint==2.15.5
+pycodestyle==2.9.1
+black==22.10.0

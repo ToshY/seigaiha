@@ -1,13 +1,15 @@
 version: "3.9"
 
 services:
-  app:
+  seigaiha:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        UID: ${UID:-10000}
+        GID: ${GID:-10001}
+    user: "${UID:-10000}:${GID:-10001}"
     restart: "no"
-    security_opt:
-      - no-new-privileges:true
     volumes:
-      - ./output:/app/output
-      - ./preset:/app/preset
+      - .:/app
+      - ./output:/output

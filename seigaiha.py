@@ -10,12 +10,12 @@ Seigaiha SVG pattern maker
 import argparse
 import math
 from pathlib import Path
-from src.banner import cli_banner
-from src.args import FileDirectoryCheck, files_in_directory
+from src.banner import banner
+from src.args import InputCheck
 from shapely.geometry import Polygon, Point, mapping
 from shapely import affinity
 from src.svg import SVGmaker
-from src.general import read_json
+from src.general import read_json_from_file, read_json_from_string
 from itertools import cycle
 from rich import print
 
@@ -33,51 +33,41 @@ def cli_args():
 
     # Arguments
     parser = argparse.ArgumentParser(description=__doc__)
+    # noinspection PyTypeChecker
     parser.add_argument(
         "-p",
         "--preset",
         type=str,
         required=True,
-        action=FileDirectoryCheck,
+        action=InputCheck,
         const=False,
         nargs="+",
-        help="Path to JSON file or directory with preset options",
+        help="Path to JSON file or string with preset options",
     )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        required=True,
-        action=FileDirectoryCheck,
-        const=False,
-        nargs="+",
-        help="Path to output file or directory",
-    )
+
     args = parser.parse_args()
 
-    # Check args count
-    user_args = input_arguments(args.preset, args.output)
+    user_args = input_arguments(args.preset)
 
     return user_args
 
 
-def input_arguments(presets, outputs):
+def input_arguments(presets: list):
     """
-    TODO: recheck and clean up.
-    Check the amount of input arguments, outputs and presets.
+    Check the presets.
 
     Parameters
     ----------
     presets : list
         Input preset argument(s).
-    outputs : list
-        Output arugment(s)
 
     Returns
     -------
     None.
 
     """
+
+    outputs = [{"type": "directory", "value": Path(output_directory).resolve()}]
 
     len_presets = len(presets)
     len_outputs = len(outputs)
@@ -86,49 +76,34 @@ def input_arguments(presets, outputs):
         if len_outputs != 1:
             raise Exception(
                 f"[red]Amount of preset arguments ({len_presets}) "
-                "does not equal the amount of output arguments ({len_outputs})."
+                f"does not equal the amount of output arguments ({len_outputs})."
             )
 
     # Prepare inputs/outputs/presets
     batch = {}
-    for i, el in enumerate(presets):
+    for element_index, element in enumerate(presets):
+        data = {}
+        file_path = element["value"]
+        data_type = element["type"]
 
-        cpath = [*el][0]
-        ptype = el[cpath]
-
-        if ptype == "file":
-            all_files = [Path(cpath)]
-            data = read_json(cpath)
-        elif ptype == "directory":
-            all_files = files_in_directory(cpath)
-            data = [read_json(fl) for fl in all_files]
-
-        len_all_files_in_batch = len(all_files)
+        if data_type == "json":
+            data = read_json_from_string(file_path)
+        elif data_type == "file":
+            data = read_json_from_file(file_path)
 
         if len_outputs == 1:
             output_files = [[*outputs][0]]
-            output_type = str(*outputs[0].values())
-            if ptype == "directory":
-                if len_all_files_in_batch > len_outputs and output_type == "file":
-                    raise Exception(
-                        f"The path `{str(cpath)}` contains"
-                        f" `{len_all_files_in_batch}` files but only"
-                        f" `{len_outputs}`"
-                        f" output filename(s) was/were specified."
-                    )
-                else:
-                    output_files = [outputs[0] for x in range(len(all_files))]
         else:
             output_files = outputs[0]
-            # Unset
             outputs.pop(0)
-            # Check type
-            if ptype == "directory":
-                # Create copies
-                output_files = [output_files for x in range(len(all_files))]
 
-        batch[str(i)] = {
-            "input": all_files,
+        batch[str(element_index)] = {
+            "input": [
+                {
+                    "type": data_type,
+                    "value": [file_path],
+                }
+            ],
             "data": data,
             "output": output_files,
         }
@@ -155,8 +130,12 @@ def get_polygon_points(corners: int, width: int) -> list:
     radius = width / 2
     points = []
     for k in range(corners):
-        x = radius + (radius * math.cos(((2 * math.pi * k) / corners) - (1 / 2 * math.pi)))
-        y = radius + (radius * math.sin(((2 * math.pi * k) / corners) - (1 / 2 * math.pi)))
+        x = radius + (
+            radius * math.cos(((2 * math.pi * k) / corners) - (1 / 2 * math.pi))
+        )
+        y = radius + (
+            radius * math.sin(((2 * math.pi * k) / corners) - (1 / 2 * math.pi))
+        )
         points.append((x, y))
 
     return points
@@ -234,7 +213,9 @@ def get_colours(polygon_collection: list, polygon_colours: list):
     return polygon_colours
 
 
-def translate_polygon(polygon: Polygon, x_direction: float, y_direction: float) -> Polygon:
+def translate_polygon(
+    polygon: Polygon, x_direction: float, y_direction: float
+) -> Polygon:
     """
     Returns translated polygon with specified x/y offset.
 
@@ -250,7 +231,7 @@ def translate_polygon(polygon: Polygon, x_direction: float, y_direction: float) 
     Returns
     -------
     Polygon
-        DESCRIPTION.
+        Translated Polygon.
 
     """
     return affinity.translate(polygon, x_direction, y_direction)
@@ -291,7 +272,9 @@ def scale_polygon(polygon: Polygon, scale_factor: float) -> Polygon:
     Polygon
         Scaled Polygon.
     """
-    return affinity.scale(polygon, xfact=scale_factor, yfact=scale_factor, origin='center')
+    return affinity.scale(
+        polygon, xfact=scale_factor, yfact=scale_factor, origin="center"
+    )
 
 
 def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5) -> float:
@@ -357,9 +340,15 @@ def get_polygon_dimensions(x1: float, y1: float, x2: float, y2: float) -> dict:
     }
 
 
-def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_width, spacing=0.5,
-                   polygon_rotation=0):
-    """ Create a single polygon """
+def create_polygon(
+    polygon_corners,
+    polygon_fractions,
+    polygon_colours,
+    polygon_width,
+    spacing=0.5,
+    polygon_rotation=0,
+):
+    """Create a single polygon"""
 
     # Get polygon points
     all_points = get_polygon_points(polygon_corners, polygon_width)
@@ -384,10 +373,13 @@ def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_
         boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
 
     # Check if needs rescaling and translating
-    if (check_polygon_boundary_limit(x1) != 0 or check_polygon_boundary_limit(
-            y1) != 0 or check_polygon_boundary_limit(x2) != polygon_width):
+    if (
+        check_polygon_boundary_limit(x1) != 0
+        or check_polygon_boundary_limit(y1) != 0
+        or check_polygon_boundary_limit(x2) != polygon_width
+    ):
         # Scale
-        rescale_factor = polygon_width / boundary_box['width']
+        rescale_factor = polygon_width / boundary_box["width"]
         polygon = scale_polygon(polygon, rescale_factor)
 
         x1, y1, x2, y2 = get_polygon_boundary(polygon)
@@ -414,13 +406,18 @@ def create_polygon(polygon_corners, polygon_fractions, polygon_colours, polygon_
             vl = (v / polygon_fractions) - (spacing) * 1 / polygon_fractions
             fractions.append(vl if vl <= 1 else 1)
     else:
-        fractions = [v / polygon_fractions for v in list(range(1, polygon_fractions + 1))]
+        fractions = [
+            v / polygon_fractions for v in list(range(1, polygon_fractions + 1))
+        ]
 
     # Create all (sub)polygons
     vct = []
     for point in all_points:
         pxl = [
-            ((px_center - point[0]) * x + point[0], (py_center - point[1]) * x + point[1])
+            (
+                (px_center - point[0]) * x + point[0],
+                (py_center - point[1]) * x + point[1],
+            )
             for x in fractions
         ]
         vct.append([point] + pxl)
@@ -446,11 +443,11 @@ def main():
     presets = cli_args()
 
     # Iterate over presets
-    for x, b in presets.items():
-        for y, fl in enumerate(b["input"]):
+    for item_index, item in presets.items():
+        for current_file_index, _ in enumerate(item["input"]):
             # Check if first/last item for reporting
-            output = b["output"][y]
-            data = b["data"]
+            output = item["output"][current_file_index]["value"]
+            data = item["data"]
             width = data["width"]
             fractions = data["fractions"]
             edges = data["edges"]
@@ -472,11 +469,9 @@ def main():
 
             # Create single SVG string
             svg_str = SVG.xml_init()
-            svg_poly = SVG.xml_poly([{
-                "polygon": polygon_coords,
-                "broken": False,
-                "colour": colours_format
-            }])
+            svg_poly = SVG.xml_poly(
+                [{"polygon": polygon_coords, "broken": False, "colour": colours_format}]
+            )
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
 
             # Save and print
@@ -495,7 +490,7 @@ def main():
                 broken_pattern = data["repeat"]["broken"]
 
                 if not all(
-                        key in broken_pattern for key in ("factor", "fractions", "colours")
+                    key in broken_pattern for key in ("factor", "fractions", "colours")
                 ):
                     raise Exception(
                         "Not all necessary keys `factor`, `fractions` and `colours` for broken "
@@ -518,9 +513,13 @@ def main():
                 svg_pattern = SVG.xml_setup_pattern(data["repeat"])
 
                 # Prepare broken polygon and colours
-                broken_polygon = polygon_objects[:broken_pattern["fractions"]]
-                broken_colours_tuple = [tuple(el.values()) for el in broken_pattern["colours"]]
-                broken_colours_format = get_colours(broken_polygon, broken_colours_tuple)
+                broken_polygon = polygon_objects[: broken_pattern["fractions"]]
+                broken_colours_tuple = [
+                    tuple(el.values()) for el in broken_pattern["colours"]
+                ]
+                broken_colours_format = get_colours(
+                    broken_polygon, broken_colours_tuple
+                )
 
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_objects = []
@@ -541,10 +540,7 @@ def main():
                         ]
 
                         polygons_row_objects.append(
-                            {
-                                "polygon": transformed_polygon,
-                                "broken": is_broken
-                            }
+                            {"polygon": transformed_polygon, "broken": is_broken}
                         )
 
                     pattern_polygons_objects[idx] = polygons_row_objects
@@ -604,7 +600,9 @@ def main():
                             {
                                 "polygon": single_polygon_coords_new,
                                 "broken": is_broken,
-                                "colour": colours_format if not is_broken else broken_colours_format
+                                "colour": colours_format
+                                if not is_broken
+                                else broken_colours_format,
                             }
                         )
 
@@ -624,16 +622,23 @@ def main():
                     )
                 )
 
-                return [pattern_container, pattern_polygon_container, pattern_polygons_objects,
-                        pattern_polygon_coordinates]
+                return [
+                    pattern_container,
+                    pattern_polygon_container,
+                    pattern_polygons_objects,
+                    pattern_polygon_coordinates,
+                ]
 
 
 if __name__ == "__main__":
-    """ Main """
-    cli_banner(__file__, banner_font="slant")
+    """Main"""
+    banner("Seigaiha", banner_font="slant")
 
     # Stop execution at keyboard input
     try:
+        output_directory = "/output"
+        preset_directory = "/preset"
+
         svgs = main()
     except KeyboardInterrupt:
         print("\r\n\r\n> [red]Execution cancelled by user[/red]")
