@@ -2,13 +2,13 @@
 .gitignore
 .github
 .idea
-output/
 docs/
-README.md
 .dockerignore
 Dockerfile
 docker-compose.yml
-**/__pycache__
+__pycache__
 .pre-commit-config.yaml
-.task/
+.task
 Taskfile.yml
+output
+README.md

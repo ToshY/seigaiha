@@ -1,10 +1,3 @@
-# Cache
-**/__pycache__
-
-# Application
-preset/
-output/*.[ps][nv]g
-!/**/.gitkeep
-
-# Docker
-docker-compose.override.yml
+__pycache__/
+**/__pycache__/
+output/

@@ -5,11 +5,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        UID: ${UID:-10000}
-        GID: ${GID:-10001}
-    user: "${UID:-10000}:${GID:-10001}"
-    restart: "no"
     volumes:
-      - .:/app
-      - ./output:/output
+      - ./:/app

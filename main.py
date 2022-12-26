@@ -1,18 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 19 22:30:50 2020
-
-@author: ToshY
-
-Seigaiha SVG pattern maker
-"""
 
 import argparse
 import math
 from pathlib import Path
-from src.banner import banner
+from src.banner import cli_banner
 from src.args import InputCheck
-from shapely.geometry import Polygon, Point, mapping
+from shapely.geometry import Polygon, Point
 from shapely import affinity
 from src.svg import SVGmaker
 from src.general import read_json_from_file, read_json_from_string
@@ -27,7 +20,7 @@ def cli_args():
     Returns
     -------
     list
-        List of dictonaries of seigaiha presets.
+        List of dictionaries of seigaiha presets.
 
     """
 
@@ -632,7 +625,7 @@ def main():
 
 if __name__ == "__main__":
     """Main"""
-    banner("Seigaiha", banner_font="slant")
+    cli_banner("Seigaiha")
 
     # Stop execution at keyboard input
     try:

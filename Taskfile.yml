@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  NAME: seigaiha
+  SERVICE: seigaiha
 
 env:
   UID:
@@ -14,37 +14,48 @@ tasks:
     cmds:
       - task --list
 
-  cs:check:
-    desc: Run pylint & pycodestyle
-    cmds:
-      - task: docker:up
-      - docker compose run --rm {{.NAME}} pylint --recursive=y . **/*.py
-      - docker compose run --rm {{.NAME}} pycodestyle --max-line-length=120 **/*.py
-
-  cs:fix:
-    desc: Run black
-    cmds:
-      - task: docker:up
-      - docker compose run --rm {{.NAME}} black .
-
-  docker:up:
-    desc: Build image and run service (detached)
-    cmds:
-      - docker compose up -d {{.CLI_ARGS | default "--remove-orphans"}}
-
-  docker:login:
-    desc: Login to container
-    cmds:
-      - docker compose run --rm {{.NAME}} /bin/bash
-
-  docker:down:
-    desc: Stop and remove service
-    cmds:
-      - docker compose down {{.CLI_ARGS | default "--rmi local --remove-orphans"}}
-
-  seigaiha:
-    desc: Create seigaiha pattern from JSON preset file or string
+  # Application
+  run:
+    desc: Create Seigaiha pattern from JSON preset file or string
     vars:
       PRESET: '{{.p | default "default.json"}}'
     cmds:
-      - docker compose run --rm {{.NAME}} python seigaiha.py -p '{{.PRESET}}'
+      - docker compose run --rm {{.SERVICE}} python main.py -p '{{.PRESET}}'
+
+  # Docker
+  up:
+    desc: Up service
+    cmds:
+      - docker compose up -d {{.CLI_ARGS | default "--build --remove-orphans --force-recreate"}}
+
+  down:
+    desc: Down service
+    cmds:
+      - docker compose down {{.CLI_ARGS | default "--rmi local --remove-orphans"}}
+
+  # Tools
+  contribute:
+    desc: Tasks for contributing
+    cmds:
+      - task: tools:pylint
+      - task: tools:pycodestyle
+
+  tools:pylint:
+    desc: Run pylint
+    cmds:
+      - docker compose run --rm {{.SERVICE}} pylint --max-line-length=120 --recursive=y .
+
+  tools:pycodestyle:
+    desc: Run pycodestyle
+    cmds:
+      - docker compose run --rm {{.SERVICE}} pycodestyle --max-line-length=120 --show-source .
+
+  tools:black:check:
+    desc: Run black dryrun
+    cmds:
+      - docker compose run --rm {{.SERVICE}} black . --diff --color
+
+  tools:black:fix:
+    desc: Run black
+    cmds:
+      - docker compose run --rm {{.SERVICE}} black .
