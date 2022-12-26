@@ -629,8 +629,8 @@ if __name__ == "__main__":
 
     # Stop execution at keyboard input
     try:
-        output_directory = "/output"
-        preset_directory = "/preset"
+        output_directory = "./output"
+        preset_directory = "./preset"
 
         svgs = main()
     except KeyboardInterrupt:
