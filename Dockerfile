@@ -7,7 +7,7 @@ ENV PIP_ROOT_USER_ACTION ignore
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y gcc libcairo2
+    && apt-get install -y libcairo2
 
 COPY requirements.txt ./
 
