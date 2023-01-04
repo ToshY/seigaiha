@@ -63,6 +63,20 @@ class SVGmaker:
         self.ynodes = data["repeat"]["vertical"]["amount"]
         self.yspacing_factor = data["repeat"]["vertical"]["spacing"]
 
+        # Pattern single polygon calculated dimensions
+        self.calculated_single_polygon_width_for_pattern = self.width / (
+            data["repeat"]["horizontal"]["amount"] - 1
+        )
+        self.pattern_width = self.width * self.xspacing_factor
+        self.calculated_single_polygon_height_for_pattern = (
+            self.height / self.width
+        ) * self.calculated_single_polygon_width_for_pattern
+        self.pattern_height = data["repeat"]["vertical"][
+            "amount"
+        ] * self.yspacing_factor * self.calculated_single_polygon_height_for_pattern - (
+            self.calculated_single_polygon_height_for_pattern / 2
+        )
+
         # Output
         self.output_directory = str(output_directory)
         self.output_file_name = self._file_naming(data)
@@ -84,7 +98,7 @@ class SVGmaker:
             '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
         )
         xml_str += (
-            '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" '
+            '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" '
             'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMidYMid meet" '
         )
         xml_str += (
@@ -123,13 +137,15 @@ class SVGmaker:
         )
         xml_str += (
             '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" '
-            'xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin" '
+            'preserveAspectRatio="xMinYMin" '
         )
+
         xml_str += (
             'width="'
-            + str(self.width * self.xspacing_factor)
-            + 'px" height="'
-            + str(self.height * self.yspacing_factor)
+            + str(self.pattern_width)
+            + 'px" '
+            + 'height="'
+            + str(self.pattern_height)
             + 'px" '
         )
         xml_str += 'viewBox="' + self.join_list(view_box) + '">\r\n'

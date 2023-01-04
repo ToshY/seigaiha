@@ -150,6 +150,21 @@ task contribute
 
 > Note: you can use `task tools:black:fix` to resolve codestyle issues.
 
+## 📝 Todo's
+
+<details>
+  <summary>🐛 Bugs</summary>
+
+* Patterns can have unnecessary polygons to the right and under side of the pattern. While this is not an issue
+concerning visibility, it however requires additional `<g>` tags which are unnecessary and therefor wasting storage space.
+</details>
+
+<details>
+  <summary>🏁 Features</summary>
+
+* Ability to have custom SVG files to fill in the broken/missing pieces for _yabure seigaiha_ patterns.
+</details>
+
 ## ❕ License
 
 This repository comes with [no license](https://choosealicense.com/no-permission/).

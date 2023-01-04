@@ -1,9 +1,10 @@
-Shapely==1.8.5.post1
+Shapely==2.0.0
 CairoSVG==2.5.2
-numpy==1.23.5
+numpy==1.24.1
 matplotlib==3.6.2
 pyfiglet==0.8.post1
-rich==12.6.0
+rich==13.0.0
 pylint==2.15.9
 pycodestyle==2.10.0
 black==22.12.0
+PyExifTool==0.5.5

@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 from src.banner import cli_banner
 from src.args import InputCheck
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Polygon, Point, LineString
 from shapely import affinity
 from src.svg import SVGmaker
 from src.general import read_json_from_file, read_json_from_string
@@ -169,7 +169,7 @@ def get_polygon_coordinates(polygon_collection) -> list:
     if type(polygon_collection) is list:
         coordinates = []
         for polygon in polygon_collection:
-            if type(polygon) is Point:
+            if type(polygon) is Point or type(polygon) is LineString:
                 coordinates.append(polygon.coords[:-1])
             else:
                 coordinates.append(polygon.exterior.coords[:-1])
@@ -396,7 +396,7 @@ def create_polygon(
                 fractions.append((v / polygon_fractions))
                 continue
 
-            vl = (v / polygon_fractions) - (spacing) * 1 / polygon_fractions
+            vl = (v / polygon_fractions) - spacing * 1 / polygon_fractions
             fractions.append(vl if vl <= 1 else 1)
     else:
         fractions = [
@@ -567,10 +567,10 @@ def main():
                         first_polygon_bounds[1] + (polygon_height / 2),
                     ),
                 ]
+
                 pattern_polygon_container = Polygon(pattern_container)
 
                 pattern_polygon_coordinates = []
-                is_empty_counter = 0
                 for idx, row in enumerate(pattern_polygons_objects):
                     pattern_polygon_coordinates.append([])
                     polygons_row_new = []
@@ -581,8 +581,6 @@ def main():
                                 pattern_polygons_objects_copy[idx][idy]["polygon"][
                                     idp
                                 ] = intersect
-                            else:
-                                is_empty_counter += 1
 
                         single_polygon_coords_new = get_polygon_coordinates(
                             pattern_polygons_objects_copy[idx][idy]["polygon"]
