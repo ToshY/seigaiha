@@ -253,7 +253,7 @@ class SVGmaker:
     def xml_create_pattern(self, polygons: list):
         xml_pattern = []
         for p in polygons:
-            xml_pattern.append(self.xml_poly(p))
+            xml_pattern.append("<g>" + self.xml_poly(p) + "</g>")
 
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 

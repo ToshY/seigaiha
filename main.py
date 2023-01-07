@@ -597,6 +597,10 @@ def main():
                             }
                         )
 
+                    # If odd row in pattern, last element is unnecessary and was not correctly intersected earlier.
+                    if idx & 1:
+                        polygons_row_new = polygons_row_new[:-1]
+
                     pattern_polygon_coordinates[idx] = polygons_row_new
 
                 # Create the actual pattern
