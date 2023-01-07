@@ -131,3 +131,7 @@
 ## Configure
 
 There are several options that can be configured for a preset
+
+## Notes
+
+* A minimal example of a repeatable pattern can be created by using the options `horizontal: 3; spacing: 1` and `vertical: 6; spacing: 0.25`.
