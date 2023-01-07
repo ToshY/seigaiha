@@ -156,7 +156,8 @@ task contribute
   <summary>🐛 Bugs</summary>
 
 * Patterns can have unnecessary polygons to the right and under side of the pattern. While this is not an issue
-concerning visibility, it however requires additional `<g>` tags which are unnecessary and therefor wasting storage space.
+concerning visibility, it however requires additional `<g>` tags which are unnecessary and therefor wasting storage space. ✅
+  * Saved roughly 4% ✅
 </details>
 
 <details>
