@@ -73,7 +73,7 @@ docker run -it --rm \
   -v ${PWD}/output:/app/output \
   -v ${PWD}/default.json:/app/preset/default.json \
   --name seigaiha t0shy/seigaiha:latest \
-  python main.py -p '{"width":2500,"fractions":11,"edges":36,"spacing":0.3,"rotation":0,"pattern":true,"repeat":{"horizontal":{"amount":10,"spacing":1},"vertical":{"amount":20,"spacing":0.25},"broken":{"factor":0,"fractions":4,"colours":[{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":200,"G":191,"B":231,"A":1}]},"alternate":1},"colours":[{"R":65,"G":124,"B":192,"A":1},{"R":255,"G":255,"B":255,"A":1}]}'
+  python main.py -p '{"width":2500,"fractions":11,"edges":36,"spacing":0.3,"rotation":0,"pattern":true,"repeat":{"horizontal":{"amount":10,"spacing":1},"vertical":{"amount":20,"spacing":0.25},"broken":{"factor":0,"fractions":4,"colors":[{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":200,"G":191,"B":231,"A":1}]},"alternate":1},"colors":[{"R":65,"G":124,"B":192,"A":1},{"R":255,"G":255,"B":255,"A":1}]}'
 ```
 
 > Note: JSON presets must be mapped to be inside the `/app/preset` directory of the container.
@@ -113,7 +113,7 @@ docker compose run --rm seigaiha python main.py -p "default.json"
 From JSON string
 
 ```shell
-docker compose run --rm seigaiha python main.py -p '{"width":2500,"fractions":11,"edges":36,"spacing":0.3,"rotation":0,"pattern":true,"repeat":{"horizontal":{"amount":10,"spacing":1},"vertical":{"amount":20,"spacing":0.25},"broken":{"factor":0,"fractions":4,"colours":[{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":200,"G":191,"B":231,"A":1}]},"alternate":1},"colours":[{"R":65,"G":124,"B":192,"A":1},{"R":255,"G":255,"B":255,"A":1}]}'
+docker compose run --rm seigaiha python main.py -p '{"width":2500,"fractions":11,"edges":36,"spacing":0.3,"rotation":0,"pattern":true,"repeat":{"horizontal":{"amount":10,"spacing":1},"vertical":{"amount":20,"spacing":0.25},"broken":{"factor":0,"fractions":4,"colors":[{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":0,"G":0,"B":0,"A":1},{"R":200,"G":191,"B":231,"A":1}]},"alternate":1},"colors":[{"R":65,"G":124,"B":192,"A":1},{"R":255,"G":255,"B":255,"A":1}]}'
 ```
 
 ## Create a preset
@@ -156,14 +156,21 @@ task contribute
   <summary>🐛 Bugs</summary>
 
 * Patterns can have unnecessary polygons to the right and under side of the pattern. While this is not an issue
-concerning visibility, it however requires additional `<g>` tags which are unnecessary and therefor wasting storage space. ✅
-  * Saved roughly 4% ✅
+  concerning visibility, it however requires additional `<g>` tags which are unnecessary and therefor wasting storage
+  space. ✅
+    * Saved roughly 4% ✅
+
 </details>
 
 <details>
   <summary>🏁 Features</summary>
 
-* Ability to have custom SVG files to fill in the broken/missing pieces for _yabure seigaiha_ patterns.
+* Ability to have custom SVG files to fill in the broken/missing pieces for _yabure seigaiha_ patterns. ✅
+    * Add option to load an image from base64 string in JSON preset.
+        * Use `base64 vector-image.svg` to get base64 string, or write to temporary file
+          with `cat vector-image.svg | base64 -w 0 > vector-image_base64.txt` and copy-paste the contents into
+          the `image` key in the JSON preset.
+
 </details>
 
 ## ❕ License

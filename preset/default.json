@@ -17,7 +17,8 @@
         "broken": {
             "factor": 0,
             "fractions": 4,
-            "colours": [
+            "skip_edge": true,
+            "colors": [
                 {
                     "R": 0,
                     "G": 0,
@@ -42,11 +43,12 @@
                     "B": 231,
                     "A": 1
                 }
-            ]
+            ],
+            "images": []
         },
         "alternate": 1
     },
-    "colours": [
+    "colors": [
         {
             "R": 65,
             "G": 124,

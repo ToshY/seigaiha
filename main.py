@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import random
 import argparse
 import math
 from pathlib import Path
@@ -178,32 +179,32 @@ def get_polygon_coordinates(polygon_collection) -> list:
     return list(polygon_collection.exterior.coords)[:-1]
 
 
-def get_colours(polygon_collection: list, polygon_colours: list):
+def get_colors(polygon_collection: list, polygon_colors: list):
     """
-    Get alternating colours for polygon filling.
+    Get alternating colors for polygon filling.
 
     Parameters
     ----------
     polygon_collection : list
         A collection of Shapely Polygon objects.
-    polygon_colours : list
-        A collection of RGB colours.
+    polygon_colors : list
+        A collection of RGB colors.
     Returns
     -------
     list
-        Collection of colours to patch the polygon with.
+        Collection of colors to patch the polygon with.
     """
 
     polygon_count = len(polygon_collection)
-    if len(polygon_colours) < polygon_count:
-        colour_cycle = cycle(polygon_colours)
-        colour_repeat_collection = []
+    if len(polygon_colors) < polygon_count:
+        color_cycle = cycle(polygon_colors)
+        color_repeat_collection = []
         for i in range(0, polygon_count):
-            colour_repeat_collection.append(next(colour_cycle))
+            color_repeat_collection.append(next(color_cycle))
 
-        return colour_repeat_collection
+        return color_repeat_collection
 
-    return polygon_colours
+    return polygon_colors
 
 
 def translate_polygon(
@@ -336,7 +337,7 @@ def get_polygon_dimensions(x1: float, y1: float, x2: float, y2: float) -> dict:
 def create_polygon(
     polygon_corners,
     polygon_fractions,
-    polygon_colours,
+    polygon_colors,
     polygon_width,
     spacing=0.5,
     polygon_rotation=0,
@@ -425,10 +426,10 @@ def create_polygon(
     # Get coords back
     polygon_coordinates = get_polygon_coordinates(polygon_collection)
 
-    # Get colours to fill
-    polygon_colours = get_colours(polygon_collection, polygon_colours)
+    # Get colors to fill
+    polygon_colors = get_colors(polygon_collection, polygon_colors)
 
-    return [boundary_box, polygon_collection, polygon_coordinates, polygon_colours]
+    return [boundary_box, polygon_collection, polygon_coordinates, polygon_colors]
 
 
 def main():
@@ -447,14 +448,14 @@ def main():
             spacing = data["spacing"]
             rotation = data["rotation"]
             pattern = data["pattern"]
-            colours = data["colours"]
+            colors = data["colors"]
 
-            # Colours to tuple
-            colours = [tuple(el.values()) for el in colours]
+            # colors to tuple
+            colors = [tuple(el.values()) for el in colors]
 
             # Create polygon object
-            box_dims, polygon_objects, polygon_coords, colours_format = create_polygon(
-                edges, fractions, colours, width, spacing, rotation
+            box_dims, polygon_objects, polygon_coords, colors_format = create_polygon(
+                edges, fractions, colors, width, spacing, rotation
             )
 
             # Init SVGmaker
@@ -463,7 +464,7 @@ def main():
             # Create single SVG string
             svg_str = SVG.xml_init()
             svg_poly = SVG.xml_poly(
-                [{"polygon": polygon_coords, "broken": False, "colour": colours_format}]
+                [{"polygon": polygon_coords, "broken": False, "color": colors_format}]
             )
             svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
 
@@ -483,10 +484,10 @@ def main():
                 broken_pattern = data["repeat"]["broken"]
 
                 if not all(
-                    key in broken_pattern for key in ("factor", "fractions", "colours")
+                    key in broken_pattern for key in ("factor", "fractions", "colors")
                 ):
                     raise Exception(
-                        "Not all necessary keys `factor`, `fractions` and `colours` for broken "
+                        "Not all necessary keys `factor`, `fractions` and `colors` for broken "
                         "pattern are specified."
                     )
 
@@ -496,23 +497,21 @@ def main():
                         "the main `fractions` key."
                     )
 
-                if len(broken_pattern["colours"]) != broken_pattern["fractions"]:
+                if len(broken_pattern["colors"]) != broken_pattern["fractions"]:
                     raise Exception(
-                        "The amount of colours for the broken pattern has to be the same as "
+                        "The amount of colors for the broken pattern has to be the same as "
                         "specified broken `fractions`."
                     )
 
                 # Create pattern setup
-                svg_pattern = SVG.xml_setup_pattern(data["repeat"])
+                svg_pattern = SVG.xml_setup_pattern()
 
-                # Prepare broken polygon and colours
+                # Prepare broken polygon and colors
                 broken_polygon = polygon_objects[: broken_pattern["fractions"]]
-                broken_colours_tuple = [
-                    tuple(el.values()) for el in broken_pattern["colours"]
+                broken_colors_tuple = [
+                    tuple(el.values()) for el in broken_pattern["colors"]
                 ]
-                broken_colours_format = get_colours(
-                    broken_polygon, broken_colours_tuple
-                )
+                broken_colors_format = get_colors(broken_polygon, broken_colors_tuple)
 
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_objects = []
@@ -523,10 +522,10 @@ def main():
                         xp = xl[0]
                         yp = xl[1]
                         is_broken = xl[2]["broken"]
+
+                        single_polygon = polygon_objects
                         if is_broken is True:
                             single_polygon = broken_polygon
-                        else:
-                            single_polygon = polygon_objects
 
                         transformed_polygon = [
                             affinity.translate(p, xp, yp) for p in single_polygon
@@ -587,13 +586,41 @@ def main():
                         )
 
                         is_broken = pattern_polygons_objects[idx][idy]["broken"]
+
+                        if is_broken and SVG.repeat_broken_images:
+                            pos_x_offset = SVG.width / 2
+                            if idx & 1:
+                                pos_x_offset = SVG.width
+
+                            single_polygon_coords_new.append(
+                                random.choice(SVG.repeat_broken_images)
+                                .replace(
+                                    "%posX%",
+                                    str(
+                                        (
+                                            SVG.width
+                                            * SVG.repeat_horizontal_spacing
+                                            * idy
+                                        )
+                                        + pos_x_offset
+                                    ),
+                                )
+                                .replace(
+                                    "%posY%",
+                                    str(
+                                        (SVG.height * SVG.repeat_vertical_spacing * idx)
+                                        + (SVG.height / 2)
+                                    ),
+                                )
+                            )
+
                         polygons_row_new.append(
                             {
                                 "polygon": single_polygon_coords_new,
                                 "broken": is_broken,
-                                "colour": colours_format
+                                "color": colors_format
                                 if not is_broken
-                                else broken_colours_format,
+                                else broken_colors_format,
                             }
                         )
 
