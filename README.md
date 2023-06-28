@@ -170,8 +170,11 @@ task contribute
         * Use `base64 vector-image.svg` to get base64 string, or write to temporary file
           with `cat vector-image.svg | base64 -w 0 > vector-image_base64.txt` and copy-paste the contents into
           the `image` key in the JSON preset.
+    * You can use [https://jakearchibald.github.io/svgomg/](https://jakearchibald.github.io/svgomg/) to simplify predefined SVGs, making
+      them more likely to work when creating a broken pattern with these images.
 
 </details>
+
 
 ## ❕ License
 

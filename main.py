@@ -1,28 +1,25 @@
-# -*- coding: utf-8 -*-
+"""
+@author: ToshY
+"""
 
 import random
 import argparse
 import math
+import sys
 from pathlib import Path
-from src.banner import cli_banner
-from src.args import InputCheck
-from shapely.geometry import Polygon, Point, LineString
-from shapely import affinity
-from src.svg import SVGmaker
-from src.general import read_json_from_file, read_json_from_string
 from itertools import cycle
 from rich import print
+from shapely.geometry import Polygon, Point, LineString
+from shapely import affinity
+from src.args import InputCheck
+from src.banner import cli_banner
+from src.svg import SVGmaker
+from src.general import read_json_from_file, read_json_from_string
 
 
 def cli_args():
     """
     Command Line argument parser.
-
-    Returns
-    -------
-    list
-        List of dictionaries of seigaiha presets.
-
     """
 
     # Arguments
@@ -49,19 +46,9 @@ def cli_args():
 def input_arguments(presets: list):
     """
     Check the presets.
-
-    Parameters
-    ----------
-    presets : list
-        Input preset argument(s).
-
-    Returns
-    -------
-    None.
-
     """
 
-    outputs = [{"type": "directory", "value": Path(output_directory).resolve()}]
+    outputs = [{"type": "directory", "value": Path(OUTPUT_DIRECTORY).resolve()}]
 
     len_presets = len(presets)
     len_outputs = len(outputs)
@@ -108,29 +95,18 @@ def input_arguments(presets: list):
 def get_polygon_points(corners: int, width: int) -> list:
     """
     Get coordinates for the polygon.
-
-    Parameters
-    ----------
-    corners: int
-        Amount of corner points for the polygon.
-    width: int
-        The width/radius of the polygon.
-    Returns
-    -------
-    list
-        Points of the polygon.
     """
 
     radius = width / 2
     points = []
     for k in range(corners):
-        x = radius + (
+        x_coordinate = radius + (
             radius * math.cos(((2 * math.pi * k) / corners) - (1 / 2 * math.pi))
         )
-        y = radius + (
+        y_coordinate = radius + (
             radius * math.sin(((2 * math.pi * k) / corners) - (1 / 2 * math.pi))
         )
-        points.append((x, y))
+        points.append((x_coordinate, y_coordinate))
 
     return points
 
@@ -138,16 +114,6 @@ def get_polygon_points(corners: int, width: int) -> list:
 def create_polygon_object(points: list) -> Polygon:
     """
     Return a Shapely polygon from points.
-
-    Parameters
-    ----------
-    points : list
-        List of coordinates to create a Shapely Polygon.
-
-    Returns
-    -------
-    Polygon
-        Shapely Polygon object.
     """
     return Polygon([[p[0], p[1]] for p in points])
 
@@ -155,22 +121,12 @@ def create_polygon_object(points: list) -> Polygon:
 def get_polygon_coordinates(polygon_collection) -> list:
     """
     Return polygon coordinates for given collection of polygons.
-
-    Parameters
-    ----------
-    polygon_collection : list
-        A collection of Polygons.
-
-    Returns
-    -------
-    list
-        A collection of exterior coordinates of each Polygon.
     """
 
-    if type(polygon_collection) is list:
+    if isinstance(polygon_collection, list):
         coordinates = []
         for polygon in polygon_collection:
-            if type(polygon) is Point or type(polygon) is LineString:
+            if isinstance(polygon, (Point, LineString)):
                 coordinates.append(polygon.coords[:-1])
             else:
                 coordinates.append(polygon.exterior.coords[:-1])
@@ -182,24 +138,13 @@ def get_polygon_coordinates(polygon_collection) -> list:
 def get_colors(polygon_collection: list, polygon_colors: list):
     """
     Get alternating colors for polygon filling.
-
-    Parameters
-    ----------
-    polygon_collection : list
-        A collection of Shapely Polygon objects.
-    polygon_colors : list
-        A collection of RGB colors.
-    Returns
-    -------
-    list
-        Collection of colors to patch the polygon with.
     """
 
     polygon_count = len(polygon_collection)
     if len(polygon_colors) < polygon_count:
         color_cycle = cycle(polygon_colors)
         color_repeat_collection = []
-        for i in range(0, polygon_count):
+        for _ in range(0, polygon_count):
             color_repeat_collection.append(next(color_cycle))
 
         return color_repeat_collection
@@ -212,21 +157,6 @@ def translate_polygon(
 ) -> Polygon:
     """
     Returns translated polygon with specified x/y offset.
-
-    Parameters
-    ----------
-    polygon : Polygon
-        Shapely Polygon object.
-    x_direction : float
-        X offset direction.
-    y_direction : float
-        Y offset direction.
-
-    Returns
-    -------
-    Polygon
-        Translated Polygon.
-
     """
     return affinity.translate(polygon, x_direction, y_direction)
 
@@ -234,18 +164,6 @@ def translate_polygon(
 def rotate_polygon(polygon: Polygon, rotation: int) -> Polygon:
     """
     Returns rotated polygon.
-
-    Parameters
-    ----------
-    polygon : Polygon
-        Polygon to be rotated.
-    rotation : int
-        Rotation in degrees.
-
-    Returns
-    -------
-    Polygon
-        Rotated Polygon.
     """
     return affinity.rotate(polygon, rotation, origin="centroid")
 
@@ -253,18 +171,6 @@ def rotate_polygon(polygon: Polygon, rotation: int) -> Polygon:
 def scale_polygon(polygon: Polygon, scale_factor: float) -> Polygon:
     """
     Returns scaled polygon with specified scale factor.
-
-    Parameters
-    ----------
-    polygon : Polygon
-        Polygon to be scaled.
-    scale_factor : float
-        Scaling factor.
-
-    Returns
-    -------
-    Polygon
-        Scaled Polygon.
     """
     return affinity.scale(
         polygon, xfact=scale_factor, yfact=scale_factor, origin="center"
@@ -274,17 +180,6 @@ def scale_polygon(polygon: Polygon, scale_factor: float) -> Polygon:
 def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5) -> float:
     """
     Returns the checked value for polygon boundary.
-
-    Parameters
-    ----------
-    value : float
-        Value to check.
-    limit : float, optional
-        The limit to which extent it is acceptable to assume rounding issues. The default is 0.1e-5.
-    Returns
-    -------
-    float
-        The initial value, possibly rounded.
     """
     if value < (round(value) + limit):
         return round(value)
@@ -295,42 +190,24 @@ def check_polygon_boundary_limit(value: float, limit: float = 0.1e-5) -> float:
 def get_polygon_boundary(polygon: Polygon) -> list:
     """
     Returns the bounds of a polygon.
-
-    Parameters
-    ----------
-    polygon : Polygon
-        Polygon to get the boundaries.
-
-    Returns
-    -------
-    list
-        The boundaries of the Polygon.
     """
     return polygon.bounds
 
 
-def get_polygon_dimensions(x1: float, y1: float, x2: float, y2: float) -> dict:
+def get_polygon_dimensions(
+    x_coordinate_1: float,
+    y_coordinate_1: float,
+    x_coordinate_2: float,
+    y_coordinate_2: float,
+) -> dict:
     """
-
-    Parameters
-    ----------
-    x1 : float
-        X1 of Polygon.
-    y1 : float
-        Y1 of Polygon.
-    x2 : float
-        X2 of Polygon.
-    y2 : float
-        Y2 of Polygon.
-
-    Returns
-    -------
-    dict
-        Dictionary with the width and height of box which Polygon fits.
+    Get Polygon dimensions.
     """
     return {
-        "width": max([x1, x2]) - min([x1, x2]),
-        "height": max([y1, y2]) - min([y1, y2]),
+        "width": max([x_coordinate_1, x_coordinate_2])
+        - min([x_coordinate_1, x_coordinate_2]),
+        "height": max([y_coordinate_1, y_coordinate_2])
+        - min([y_coordinate_1, y_coordinate_2]),
     }
 
 
@@ -342,7 +219,9 @@ def create_polygon(
     spacing=0.5,
     polygon_rotation=0,
 ):
-    """Create a single polygon"""
+    """
+    Create a single polygon.
+    """
 
     # Get polygon points
     all_points = get_polygon_points(polygon_corners, polygon_width)
@@ -351,36 +230,67 @@ def create_polygon(
     polygon = create_polygon_object(all_points)
 
     # Retrieve polygon boundary box coordinates
-    x1, y1, x2, y2 = get_polygon_boundary(polygon)
-    boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
+    (
+        x_coordinate_1,
+        y_coordinate_1,
+        x_coordinate_2,
+        y_coordinate_2,
+    ) = get_polygon_boundary(polygon)
+    boundary_box = get_polygon_dimensions(
+        x_coordinate_1, y_coordinate_1, x_coordinate_2, y_coordinate_2
+    )
 
     # Rotate
     if polygon_rotation != 0:
         # Rotate
         polygon = rotate_polygon(polygon, polygon_rotation)
-        x1, y1, x2, y2 = get_polygon_boundary(polygon)
+        (
+            x_coordinate_1,
+            y_coordinate_1,
+            x_coordinate_2,
+            y_coordinate_2,
+        ) = get_polygon_boundary(polygon)
 
         # Retranslate
-        polygon = translate_polygon(polygon, -x1, -y1)
+        polygon = translate_polygon(polygon, -x_coordinate_1, -y_coordinate_1)
 
-        x1, y1, x2, y2 = get_polygon_boundary(polygon)
-        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
+        (
+            x_coordinate_1,
+            y_coordinate_1,
+            x_coordinate_2,
+            y_coordinate_2,
+        ) = get_polygon_boundary(polygon)
+        boundary_box = get_polygon_dimensions(
+            x_coordinate_1, y_coordinate_1, x_coordinate_2, y_coordinate_2
+        )
 
     # Check if needs rescaling and translating
     if (
-        check_polygon_boundary_limit(x1) != 0
-        or check_polygon_boundary_limit(y1) != 0
-        or check_polygon_boundary_limit(x2) != polygon_width
+        check_polygon_boundary_limit(x_coordinate_1) != 0
+        or check_polygon_boundary_limit(y_coordinate_1) != 0
+        or check_polygon_boundary_limit(x_coordinate_2) != polygon_width
     ):
         # Scale
         rescale_factor = polygon_width / boundary_box["width"]
         polygon = scale_polygon(polygon, rescale_factor)
 
-        x1, y1, x2, y2 = get_polygon_boundary(polygon)
-        polygon = translate_polygon(polygon, -x1, -y1)
+        (
+            x_coordinate_1,
+            y_coordinate_1,
+            x_coordinate_2,
+            y_coordinate_2,
+        ) = get_polygon_boundary(polygon)
+        polygon = translate_polygon(polygon, -x_coordinate_1, -y_coordinate_1)
 
-        x1, y1, x2, y2 = get_polygon_boundary(polygon)
-        boundary_box = get_polygon_dimensions(x1, y1, x2, y2)
+        (
+            x_coordinate_1,
+            y_coordinate_1,
+            x_coordinate_2,
+            y_coordinate_2,
+        ) = get_polygon_boundary(polygon)
+        boundary_box = get_polygon_dimensions(
+            x_coordinate_1, y_coordinate_1, x_coordinate_2, y_coordinate_2
+        )
 
     # Get center coordinates of polygon
     px_center = polygon.centroid.x
@@ -392,13 +302,13 @@ def create_polygon(
     # Fractions list
     if spacing is not None:
         fractions = []
-        for i, v in enumerate(list(range(1, polygon_fractions + 1))):
+        for i, fraction_value in enumerate(list(range(1, polygon_fractions + 1))):
             if (i % 2) != 0:
-                fractions.append((v / polygon_fractions))
+                fractions.append((fraction_value / polygon_fractions))
                 continue
 
-            vl = (v / polygon_fractions) - spacing * 1 / polygon_fractions
-            fractions.append(vl if vl <= 1 else 1)
+            val = (fraction_value / polygon_fractions) - spacing * 1 / polygon_fractions
+            fractions.append(val if val <= 1 else 1)
     else:
         fractions = [
             v / polygon_fractions for v in list(range(1, polygon_fractions + 1))
@@ -433,11 +343,13 @@ def create_polygon(
 
 
 def main():
-    # Input arguments
+    """
+    Main
+    """
     presets = cli_args()
 
     # Iterate over presets
-    for item_index, item in presets.items():
+    for _, item in presets.items():
         for current_file_index, _ in enumerate(item["input"]):
             # Check if first/last item for reporting
             output = item["output"][current_file_index]["value"]
@@ -459,76 +371,65 @@ def main():
             )
 
             # Init SVGmaker
-            SVG = SVGmaker(data, output, [box_dims["width"], box_dims["height"]])
+            svg_maker = SVGmaker(data, output, [box_dims["width"], box_dims["height"]])
 
             # Create single SVG string
-            svg_str = SVG.xml_init()
-            svg_poly = SVG.xml_poly(
+            svg_str = svg_maker.xml_init()
+            svg_poly = svg_maker.xml_poly(
                 [{"polygon": polygon_coords, "broken": False, "color": colors_format}]
             )
-            svg_finalized = svg_str.replace(SVG.poly_placeholder, svg_poly)
+            svg_finalized = svg_str.replace(svg_maker.poly_placeholder, svg_poly)
 
             # Save and print
             print(
-                "\r > Saved polygon to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
-                    SVG.save_svg(svg_finalized), SVG.save_png(svg_finalized)
-                )
+                f"\r > Saved polygon to [cyan]{svg_maker.save_svg(svg_finalized)}[/cyan] & [cyan]{svg_maker.save_png(svg_finalized)}[/cyan]"
             )
 
             # Create pattern
             if pattern:
-                # Init pattern
-                svg_str_pattern = SVG.xml_init_pattern()
+                svg_str_pattern = svg_maker.xml_init_pattern()
+                svg_pattern = svg_maker.xml_setup_pattern()
 
-                # Check broken
+                # "Broken" polygon should be a "normal" polygon if a broken pattern is not specified
+                broken_polygon = polygon_objects[:fractions]
+
                 broken_pattern = data["repeat"]["broken"]
+                if broken_pattern:
+                    # Prepare broken polygon and colors
+                    broken_colors_tuple = [
+                        tuple(el.values()) for el in broken_pattern["colors"]
+                    ]
 
-                if not all(
-                    key in broken_pattern for key in ("factor", "fractions", "colors")
-                ):
-                    raise Exception(
-                        "Not all necessary keys `factor`, `fractions` and `colors` for broken "
-                        "pattern are specified."
+                    _, broken_polygon_objects, _, broken_colors_format = create_polygon(
+                        edges,
+                        broken_pattern["fractions"],
+                        broken_colors_tuple,
+                        width,
+                        spacing,
+                        rotation,
                     )
 
-                if broken_pattern["fractions"] >= fractions:
-                    raise Exception(
-                        "The `fractions` key for broken pattern can not be equal or larger than "
-                        "the main `fractions` key."
-                    )
-
-                if len(broken_pattern["colors"]) != broken_pattern["fractions"]:
-                    raise Exception(
-                        "The amount of colors for the broken pattern has to be the same as "
-                        "specified broken `fractions`."
-                    )
-
-                # Create pattern setup
-                svg_pattern = SVG.xml_setup_pattern()
-
-                # Prepare broken polygon and colors
-                broken_polygon = polygon_objects[: broken_pattern["fractions"]]
-                broken_colors_tuple = [
-                    tuple(el.values()) for el in broken_pattern["colors"]
-                ]
-                broken_colors_format = get_colors(broken_polygon, broken_colors_tuple)
+                    broken_polygon = broken_polygon_objects[
+                        : broken_pattern["fractions"]
+                    ]
 
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_objects = []
                 for idx, row in enumerate(svg_pattern):
                     pattern_polygons_objects.append([])
                     polygons_row_objects = []
-                    for ix, xl in enumerate(row):
-                        xp = xl[0]
-                        yp = xl[1]
-                        is_broken = xl[2]["broken"]
+                    for _, current_x_list in enumerate(row):
+                        x_point = current_x_list[0]
+                        y_point = current_x_list[1]
+                        is_broken = current_x_list[2]["broken"]
 
                         single_polygon = polygon_objects
                         if is_broken is True:
                             single_polygon = broken_polygon
 
                         transformed_polygon = [
-                            affinity.translate(p, xp, yp) for p in single_polygon
+                            affinity.translate(p, x_point, y_point)
+                            for p in single_polygon
                         ]
 
                         polygons_row_objects.append(
@@ -587,19 +488,19 @@ def main():
 
                         is_broken = pattern_polygons_objects[idx][idy]["broken"]
 
-                        if is_broken and SVG.repeat_broken_images:
-                            pos_x_offset = SVG.width / 2
+                        if is_broken and svg_maker.repeat_broken_images:
+                            pos_x_offset = svg_maker.width / 2
                             if idx & 1:
-                                pos_x_offset = SVG.width
+                                pos_x_offset = svg_maker.width
 
                             single_polygon_coords_new.append(
-                                random.choice(SVG.repeat_broken_images)
+                                random.choice(svg_maker.repeat_broken_images)
                                 .replace(
                                     "%posX%",
                                     str(
                                         (
-                                            SVG.width
-                                            * SVG.repeat_horizontal_spacing
+                                            svg_maker.width
+                                            * svg_maker.repeat_horizontal_spacing
                                             * idy
                                         )
                                         + pos_x_offset
@@ -608,8 +509,12 @@ def main():
                                 .replace(
                                     "%posY%",
                                     str(
-                                        (SVG.height * SVG.repeat_vertical_spacing * idx)
-                                        + (SVG.height / 2)
+                                        (
+                                            svg_maker.height
+                                            * svg_maker.repeat_vertical_spacing
+                                            * idx
+                                        )
+                                        + (svg_maker.height / 2)
                                     ),
                                 )
                             )
@@ -631,17 +536,16 @@ def main():
                     pattern_polygon_coordinates[idx] = polygons_row_new
 
                 # Create the actual pattern
-                svg_poly_pattern = SVG.xml_create_pattern(pattern_polygon_coordinates)
+                svg_poly_pattern = svg_maker.xml_create_pattern(
+                    pattern_polygon_coordinates
+                )
                 svg_finalized_pattern = svg_str_pattern.replace(
-                    SVG.poly_placeholder, svg_poly_pattern["string"]
+                    svg_maker.poly_placeholder, svg_poly_pattern["string"]
                 )
 
                 # Save and print
                 print(
-                    "\r > Saved pattern to [cyan]{}[/cyan] & [cyan]{}[/cyan]".format(
-                        SVG.save_svg(svg_finalized_pattern),
-                        SVG.save_png(svg_finalized_pattern),
-                    )
+                    f"\r > Saved pattern to [cyan]{svg_maker.save_svg(svg_finalized_pattern)}[/cyan] & [cyan]{svg_maker.save_png(svg_finalized_pattern)}[/cyan]"
                 )
 
                 return [
@@ -653,15 +557,14 @@ def main():
 
 
 if __name__ == "__main__":
-    """Main"""
     cli_banner("Seigaiha")
 
     # Stop execution at keyboard input
     try:
-        output_directory = "./output"
-        preset_directory = "./preset"
+        OUTPUT_DIRECTORY = "./output"
+        PRESET_DIRECTORY = "./preset"
 
         svgs = main()
     except KeyboardInterrupt:
         print("\r\n\r\n> [red]Execution cancelled by user[/red]")
-        exit()
+        sys.exit()

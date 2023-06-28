@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+"""General"""
 import collections
 import functools
 import json
@@ -10,20 +9,6 @@ def read_file(
 ):
     """
     Read in file
-
-    Parameters
-    ----------
-    input_file : str
-        Input file name.
-    split_lines : bool, optional
-        Split lines. The default is True.
-    custom_encoding : str
-        The encoding to use for the file. The default is latin-1.
-
-    Returns
-    -------
-    list
-        Dictionary with the content and encoding.
     """
 
     input_file_read = open(str(input_file), mode="r", encoding=custom_encoding).read()
@@ -37,16 +22,6 @@ def read_file(
 def read_json_from_file(input_file: str) -> dict:
     """
     Read in JSON file.
-
-    Parameters
-    ----------
-    input_file : str
-        The specified input JSON file.
-
-    Returns
-    -------
-    data : dictionary
-        The data in JSON format.
     """
 
     with open(input_file) as json_file:
@@ -56,13 +31,19 @@ def read_json_from_file(input_file: str) -> dict:
 
 
 def read_json_from_string(input_string: str):
+    """
+    Read JSON from string.
+    """
     return json.loads(input_string)
 
 
 def is_json(input_string: str) -> bool:
+    """
+    Check if valid JSON.
+    """
     try:
         json.loads(input_string)
-    except ValueError as e:
+    except ValueError:
         return False
     return True
 
@@ -144,7 +125,7 @@ def dict_to_tuple(key_value_dict: dict) -> list:
         List of key:value arguments.
     """
 
-    return [(k, v) for k, v in key_value_dict.items()]
+    return list(key_value_dict.items())
 
 
 def list_to_dict(key_value_list: list) -> dict:
@@ -184,9 +165,9 @@ def split_list_of_dicts_by_key(list_of_dicts: list, key: str = "codec_type") -> 
 
     result = collections.defaultdict(list)
     keys = []
-    for d in list_of_dicts:
-        result[d[key]].append(d)
-        if d[key] not in keys:
-            keys.append(d[key])
+    for current_dict in list_of_dicts:
+        result[current_dict[key]].append(current_dict)
+        if current_dict[key] not in keys:
+            keys.append(current_dict[key])
 
     return list(result.values()), keys

@@ -24,7 +24,8 @@
             "spacing": 0.25
         },
         "broken": {
-            "factor": 0.15,
+            "factor": 0.15, 
+            "factor_rounding": "round",
             "fractions": 4,
             "colors": [
                 {
@@ -93,6 +94,7 @@
         },
         "broken": {
             "factor": 0.15,
+            "factor_rounding": "floor",
             "fractions": 2,
             "colors": [
                 {
@@ -148,7 +150,8 @@
             "spacing": 0.25
         },
         "broken": {
-            "factor": 0.2,
+            "factor": 0.2, 
+            "factor_rounding": "ceil",
             "fractions": 2,
             "skip_edge": true,
             "colors": [

@@ -22,6 +22,25 @@ tasks:
     cmds:
       - docker compose run --rm {{.SERVICE}} python main.py -p '{{.PRESET}}'
 
+  run:times:
+    desc: Create Seigaiha pattern from JSON preset file or string X amount of times
+    vars:
+      TIMES: '{{.t | default 10}}'
+      PRESET: '{{.p | default "default.json"}}'
+    cmds:
+      - |
+        for i in {1..{{.TIMES}}}
+        do
+           docker compose run --rm {{.SERVICE}} python main.py -p '{{.PRESET}}'
+        done
+
+  svg2base:
+    desc: SVG to Base64 string
+    vars:
+      INPUT: '{{.i}}'
+    cmds:
+      - cat "{{.INPUT}}" | base64 -w 0 > "{{.INPUT}}.txt"
+
   # Docker
   up:
     desc: Up service

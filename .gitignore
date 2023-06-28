@@ -3,3 +3,5 @@ __pycache__/
 output/
 preset/*
 !preset/default.json
+.svg
+.svg.txt

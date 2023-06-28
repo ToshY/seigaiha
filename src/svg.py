@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-
+"""SVG"""
 import re
 import base64
 import datetime
@@ -9,12 +8,18 @@ from cairosvg import svg2png
 
 
 def _get_formatted_datetime():
-    """Get formatted datetime"""
+    """
+    Get formatted datetime.
+    """
 
     return datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
 
 
 class SVGmaker:
+    """
+    SVG maker.
+    """
+
     poly_placeholder = "%polygons%"
 
     svg_desc = "Rendered with Seigaiha | https://github.com/ToshY/seigaiha"
@@ -110,12 +115,10 @@ class SVGmaker:
 
             self.is_broken = False
             self.broken_factor = 0
-            if self.repeat_broken["factor"] and self.repeat_broken["factor"] > 0:
+            if self.repeat_broken["factor"]:
                 self.is_broken = True
-                self.broken_factor = round(
-                    self.repeat_broken["factor"]
-                    * (self.repeat_horizontal_amount * self.repeat_vertical_amount)
-                )
+                if self.repeat_broken["factor"] > 0:
+                    self.broken_factor = self.repeat_broken["factor"]
 
             # Pattern single polygon calculated dimensions
             self.calculated_single_polygon_width_for_pattern = self.width / (
@@ -142,15 +145,7 @@ class SVGmaker:
 
     def xml_init(self, shape_rendering: str = "geometricprecision") -> str:
         """
-
-        Parameters
-        ----------
-        shape_rendering
-
-        Returns
-        -------
-        str
-
+        Init XML.
         """
         xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
         xml_str += (
@@ -164,7 +159,7 @@ class SVGmaker:
         xml_str += (
             'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
         )
-        xml_str += 'viewBox="' + self.join_list(self.view_box) + '">\r\n'
+        xml_str += 'viewBox="' + self.join_view_box_list(self.view_box) + '">\r\n'
         xml_str += '<g style="shape-rendering: ' + shape_rendering + ';">\r\n'
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
@@ -174,6 +169,9 @@ class SVGmaker:
         return xml_str
 
     def xml_init_pattern(self, shape_rendering: str = "geometricprecision") -> str:
+        """
+        Init XML pattern.
+        """
         view_box = self.view_box
         view_box[0] = view_box[0] + self.width
         view_box[1] = view_box[1] + self.height
@@ -198,7 +196,7 @@ class SVGmaker:
             + str(self.pattern_height)
             + 'px" '
         )
-        xml_str += 'viewBox="' + self.join_list(view_box) + '">\r\n'
+        xml_str += 'viewBox="' + self.join_view_box_list(view_box) + '">\r\n'
         xml_str += '<g style="shape-rendering: ' + shape_rendering + ';">\r\n'
         xml_str += self.poly_placeholder
         xml_str += "</g>\r\n"
@@ -211,18 +209,22 @@ class SVGmaker:
         """Create polygon segments"""
 
         xml_final = ""
-        for idx, part in enumerate(polygon):
+        for _, part in enumerate(polygon):
             xml_poly = "<g>"
             poly = part["polygon"]
             colors = part["color"]
 
-            for ip, poly_slice in enumerate(poly):
+            for current_index_polygon, poly_slice in enumerate(poly):
                 # Check if image was substituted in broken polygon
                 if isinstance(poly_slice, str):
                     xml_poly += poly_slice
                     continue
 
-                hex_color = self.rgb2hex(colors[ip][0], colors[ip][1], colors[ip][2])
+                hex_color = self.rgb2hex(
+                    colors[current_index_polygon][0],
+                    colors[current_index_polygon][1],
+                    colors[current_index_polygon][2],
+                )
 
                 xml_poly += (
                     '<path d="M'
@@ -230,7 +232,7 @@ class SVGmaker:
                     + 'Z" fill="'
                     + hex_color
                     + '" fill-opacity="'
-                    + str(colors[ip][3])
+                    + str(colors[current_index_polygon][3])
                     + '"/>'
                 )
             xml_poly += "</g>"
@@ -239,8 +241,8 @@ class SVGmaker:
         return xml_final
 
     def xml_setup_pattern(self):
-        # Standard pattern
-        xl = np.linspace(
+        """Setup pattern"""
+        x_linspace = np.linspace(
             0,
             round(
                 self.width
@@ -250,13 +252,14 @@ class SVGmaker:
             self.repeat_horizontal_amount + 1,
         ).tolist()[:-1]
 
-        xli = xl
+        x_linspace_alt = x_linspace
         if self.repeat_alternate >= 0:
-            xli = [
-                (v + self.single_polygon_x_center) * self.repeat_alternate for v in xl
+            x_linspace_alt = [
+                (v + self.single_polygon_x_center) * self.repeat_alternate
+                for v in x_linspace
             ]
 
-        yl = np.linspace(
+        y_linspace = np.linspace(
             0,
             round(
                 self.height * self.repeat_vertical_spacing * self.repeat_vertical_amount
@@ -264,57 +267,90 @@ class SVGmaker:
             self.repeat_vertical_amount + 1,
         ).tolist()[:-1]
 
-        pattern_list = [[] for _ in yl]
-        for iy in range(len(yl)):
+        pattern_list = [[] for _ in y_linspace]
+        for current_y_index, _ in enumerate(y_linspace):
             ix_list = []
-            xll = xl
-            if iy % 2 != 0:
-                xll = xli
-            for ix in range(len(xll)):
+            xll = x_linspace
+            if current_y_index % 2 != 0:
+                xll = x_linspace_alt
+            for _, current_x_value in enumerate(xll):
                 ix_list.append(
                     (
-                        self.single_polygon_x_center + xll[ix],
-                        self.single_polygon_y_center + yl[iy],
-                        {"broken": False},
+                        self.single_polygon_x_center + current_x_value,
+                        self.single_polygon_y_center + y_linspace[current_y_index],
+                        {"broken": False, "edge": False, "invisible_edge": False},
                     )
                 )
 
-            pattern_list[iy] = ix_list
+            pattern_list[current_y_index] = ix_list
+
+        x_boundary = {"low": pattern_list[0][0][0], "high": pattern_list[-2][-1][0]}
+        y_boundary = {"low": pattern_list[1][0][1], "high": pattern_list[-1][-1][1]}
+
+        total_visible_count = 0
+        complete_index_collection = []
+        non_edge_index_collection = []
+        for row, item in enumerate(pattern_list):
+            for column, coord_tuple_collection in enumerate(item):
+                if (
+                    coord_tuple_collection[0] < x_boundary["low"]
+                    or coord_tuple_collection[0] > x_boundary["high"]
+                    or coord_tuple_collection[1] < y_boundary["low"]
+                    or coord_tuple_collection[1] > y_boundary["high"]
+                ):
+                    pattern_list[row][column][-1]["edge"] = True
+                    pattern_list[row][column][-1]["invisible_edge"] = True
+                    continue
+
+                if (
+                    coord_tuple_collection[0] <= x_boundary["low"]
+                    or coord_tuple_collection[0] >= x_boundary["high"]
+                    or coord_tuple_collection[1] <= y_boundary["low"]
+                    or coord_tuple_collection[1] >= y_boundary["high"]
+                ):
+
+                    pattern_list[row][column][-1]["edge"] = True
+                    complete_index_collection.append((row, column))
+
+                    total_visible_count += 1
+                    continue
+
+                total_visible_count += 1
+                non_edge_index_collection.append((row, column))
+                complete_index_collection.append((row, column))
 
         if self.is_broken is False:
             return pattern_list
 
-        # Equally distributed random items to break in pattern per line (vertical)
-        broken_polygons = self._get_broken_polygons(
-            self.broken_factor, self.repeat_vertical_amount
+        max_amount_broken_polygons = int(
+            self._round_value(self.broken_factor * total_visible_count)
         )
 
-        # Create a new distribution by skipping first 2 and last 2 rows.
-        # This will make sure the pattern is 1) repeatable even though it is broken 2) closely respect broken factor.
-        if self.repeat_broken_skip_edge is True:
-            broken_polygons = (
-                [0, 0]
-                + self._get_broken_polygons(
-                    self.broken_factor, self.repeat_vertical_amount - 4
-                )
-                + [0, 0]
+        sampled_broken_list = random.sample(
+            complete_index_collection, max_amount_broken_polygons
+        )
+        if self.repeat_broken_skip_edge:
+            non_edge_count = len(non_edge_index_collection)
+            if non_edge_count < max_amount_broken_polygons:
+                max_amount_broken_polygons = non_edge_count
+
+            sampled_broken_list = random.sample(
+                non_edge_index_collection, max_amount_broken_polygons
             )
 
-        for x, k in enumerate(pattern_list):
-            broken_horizontal = broken_polygons[x]
-            broken_count = 0
-            while broken_count < broken_horizontal:
-                pattern_list[x][self._random_index(pattern_list[x])][-1][
-                    "broken"
-                ] = True
-                broken_count += 1
+        for broken_index_first_layer, broken_index_second_layer in sampled_broken_list:
+            pattern_list[broken_index_first_layer][broken_index_second_layer][-1][
+                "broken"
+            ] = True
 
         return pattern_list
 
     def xml_create_pattern(self, polygons: list):
+        """Create XML pattern"""
+
         xml_pattern = []
-        for p in polygons:
-            xml_pattern.append("<g>" + self.xml_poly(p) + "</g>")
+        for current_polygon in polygons:
+            xml_pattern.append("<g>" + self.xml_poly(current_polygon) + "</g>")
 
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 
@@ -337,16 +373,18 @@ class SVGmaker:
         return png_file
 
     # noinspection PyMethodMayBeStatic
-    def join_list(self, x, deli=" ") -> str:
+    def join_view_box_list(self, view_box, deli=" ") -> str:
         """Join lists/tuples to string"""
 
-        return deli.join(map(str, x))
+        return deli.join(map(str, view_box))
 
-    def rgb2hex(self, r, g, b) -> str:
+    def rgb2hex(self, red_value, green_value, blue_value) -> str:
         """RGB to Hexadecimal"""
 
         return "#{0:02x}{1:02x}{2:02x}".format(
-            self._rgbounds(r), self._rgbounds(g), self._rgbounds(b)
+            self._rgbounds(red_value),
+            self._rgbounds(green_value),
+            self._rgbounds(blue_value),
         )
 
     # noinspection PyMethodMayBeStatic
@@ -409,7 +447,7 @@ class SVGmaker:
         )
 
         if not match_svg:
-            raise Exception(f"Could not extract `<svg>` tag from given input image.")
+            raise Exception("Could not extract `<svg>` tag from given input image.")
 
         return match_svg.group()
 
@@ -426,44 +464,30 @@ class SVGmaker:
         )
 
     # noinspection PyMethodMayBeStatic
-    def _rgbounds(self, x) -> int:
+    def _rgbounds(self, integer_value) -> int:
         """RGB boundaries"""
 
-        return max(0, min(x, 255))
+        return max(0, min(integer_value, 255))
 
     # noinspection PyMethodMayBeStatic
-    def _check_viewbox(self, c) -> list:
+    def _check_viewbox(self, view_box_dimensions) -> list:
         """Check viewbox numerical values"""
 
-        vb = [s for s in c if isinstance(s, (int, float))]
-        if len(vb) != len(c):
+        view_box = [s for s in view_box_dimensions if isinstance(s, (int, float))]
+        if len(view_box) != len(view_box_dimensions):
             raise Exception(
                 "Invalid viewbox specified. Please make sure that the viewbox only contains "
                 "numerical values."
             )
-        else:
-            return vb
+
+        return view_box
 
     # noinspection PyMethodMayBeStatic
-    def _random_partition(self, n, s) -> list:
-        partition = [0] * s
-        for x in range(n):
-            partition[random.randrange(s)] += 1
-
-        return partition
-
-    # noinspection PyMethodMayBeStatic
-    def _random_index(self, n) -> int:
-        if self.repeat_broken_skip_edge is True:
-            return random.randrange(1, len(n) - 1)
-
-        return random.randrange(len(n))
-
-    def _get_broken_polygons(self, broken_total_factor, amount_in_partition) -> list:
-        return [
-            round(sum(x) / 2)
-            for x in zip(
-                self._random_partition(broken_total_factor, amount_in_partition),
-                self._random_partition(broken_total_factor, amount_in_partition),
-            )
-        ]
+    def _round_value(self, val) -> int:
+        match self.repeat_broken.get("factor_rounding", "round"):
+            case "floor":
+                return np.floor(val)
+            case "ceil":
+                return np.ceil(val)
+            case _:
+                return np.round(val)

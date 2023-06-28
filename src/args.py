@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+"""Arguments"""
 
 import argparse
 from pathlib import Path
@@ -11,19 +11,6 @@ install()
 def files_in_directory(file_path, file_types=None):
     """
     Get the files in the specified directory.
-
-    Parameters
-    ----------
-    file_path : str
-        Path of input directory.
-    file_types : list, optional
-        Allowed extension to look for. The default is ['*.json'].
-
-    Returns
-    -------
-    list
-        List of Path objects in specified directory.
-
     """
 
     if file_types is None:
@@ -41,49 +28,28 @@ class InputCheck(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         """
         File/Directory argument checks
-
-        Parameters
-        ----------
-        parser
-            Argument parser.
-        args
-            Arguments.
-        values
-            Argument values.
-        option_string
-            Descriptional string. The default is None.
-
-        Raises
-        ------
-        FileNotFoundError
-            The specified File or Directory could not resolved.
-
-        Returns
-        -------
-        None
-
         """
 
         all_values = []
-        for fl in values:
-            p = Path(f"preset/{fl}").resolve()
+        for preset_file_value in values:
+            preset_file_path = Path(f"preset/{preset_file_value}").resolve()
             if not self.const:
-                if p.suffix:
-                    if is_json(fl):
-                        all_values.append({"type": "json", "value": fl})
+                if preset_file_path.suffix:
+                    if is_json(preset_file_value):
+                        all_values.append({"type": "json", "value": preset_file_value})
                     else:
-                        all_values.append({"type": "file", "value": p})
+                        all_values.append({"type": "file", "value": preset_file_path})
                 else:
-                    if is_json(fl):
-                        all_values.append({"type": "json", "value": fl})
+                    if is_json(preset_file_value):
+                        all_values.append({"type": "json", "value": preset_file_value})
             else:
-                if is_json(fl):
-                    all_values.append({"type": "json", "value": fl})
-                if not p.exists():
+                if is_json(preset_file_value):
+                    all_values.append({"type": "json", "value": preset_file_value})
+                if not preset_file_path.exists():
                     raise FileNotFoundError(
-                        f"The specified path `{fl}` does not exist."
+                        f"The specified path `{preset_file_value}` does not exist."
                     )
-                if p.is_file():
-                    all_values.append({"type": "file", "value": p})
+                if preset_file_path.is_file():
+                    all_values.append({"type": "file", "value": preset_file_path})
 
         setattr(args, self.dest, all_values)

@@ -16,6 +16,7 @@
         },
         "broken": {
             "factor": 0,
+            "factor_rounding": "round",
             "fractions": 4,
             "skip_edge": true,
             "colors": [
