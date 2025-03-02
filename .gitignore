@@ -1,7 +1,10 @@
+# cache
 __pycache__/
 **/__pycache__/
+.ruff_cache/
+.mypy_cache/
+# miscellaneous
 output/
-preset/*
-!preset/default.json
+input/
 .svg
 .svg.txt

@@ -1,16 +1,46 @@
-FROM python:3.10-slim
+ARG PYTHON_IMAGE_VERSION=3.11
+
+FROM python:${PYTHON_IMAGE_VERSION}-slim-bookworm AS base
 
 LABEL maintainer="ToshY (github.com/ToshY)"
 
-ENV PIP_ROOT_USER_ACTION ignore
+ENV PIP_ROOT_USER_ACTION=ignore
 
-WORKDIR /app
+WORKDIR /build
 
-RUN apt-get update \
-    && apt-get install -y libcairo2 libimage-exiftool-perl
+RUN <<EOT bash
+  set -ex
+  apt-get update
+  apt install -y libcairo2
+  apt-get clean
+  rm -rf /var/lib/apt/lists/*
+EOT
 
 COPY requirements.txt ./
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --upgrade --force-reinstall 'setuptools>=65.5.1'
+
+FROM base AS prod
 
 COPY . .
+
+RUN pip install .
+
+WORKDIR /app
+
+RUN <<EOT bash
+  set -ex
+  mkdir -p ./{input,output}
+  rm -rf /build
+EOT
+
+ENTRYPOINT ["seigaiha"]
+
+FROM base AS dev
+
+WORKDIR /app
+
+COPY requirements.dev.txt ./
+
+RUN pip install --no-cache-dir -r requirements.dev.txt
