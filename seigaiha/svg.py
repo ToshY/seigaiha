@@ -1,10 +1,15 @@
-"""SVG"""
+import json
 import re
 import base64
 import datetime
 import random
+from pathlib import Path
+
 import numpy as np
-from cairosvg import svg2png
+from cairocffi import CairoError  # type: ignore[import-untyped]
+from cairosvg import svg2png  # type: ignore[import-untyped]
+
+from seigaiha.exception import InvalidViewBoxError, SvgToPngImageError
 
 
 def _get_formatted_datetime():
@@ -22,65 +27,65 @@ class SVGmaker:
 
     poly_placeholder = "%polygons%"
 
-    svg_desc = "Rendered with Seigaiha | https://github.com/ToshY/seigaiha"
+    svg_description = "Rendered with Seigaiha | https://github.com/ToshY/seigaiha"
 
     def __init__(
         self,
-        data,
-        output_directory,
-        dims,
-        scale=1,
-        vbox=[0, 0, -1, -1],
-        constraint=182.25,
+        user_preset: dict,
+        image_dimensions: list,
+        image_view_box: list = [0, 0, -1, -1],
     ):
+        self.preset = user_preset
+        self.safe_base_encoded_preset = base64.b64encode(
+            json.dumps(self.preset).encode("utf-8")
+        ).decode("utf-8")
+
         # Initial image dimensions
-        self.width, self.height = dims
+        self.width, self.height = image_dimensions
 
         # Center polygon
         self.single_polygon_x_center = self.width / 2
         self.single_polygon_y_center = self.height / 2
 
-        # Scale to max resolution
-        self.scale = scale
-        if scale != 1:
-            self.scale = scale / max(dims)
-
-        # Check scale does not exceed constraint and solve if needed
-        mega_pixel_constraint = ((self.width * self.height) * self.scale**2) / 1e6
-        if mega_pixel_constraint >= constraint:
-            self.scale = ((round(constraint) * 1e6) / (self.width * self.height)) ** (
-                1 / 2
-            )
-
         # Viewbox
-        self.view_box = self._check_viewbox(vbox)
+        self.view_box = self._check_viewbox_dimensions(image_view_box)
         if self.view_box[-2:] == [-1, -1]:
-            self.view_box[-2:] = dims
+            self.view_box[-2:] = image_dimensions
 
-        # Scale
-        if self.scale != 1:
-            self.view_box = [self.scale * x for x in self.view_box]
-            self.width, self.height = self.view_box[-2:]
-
-        if data["repeat"]:
+        # Pattern
+        pattern = user_preset.get("pattern", False)
+        if pattern:
             # Alternate
-            self.repeat_alternate = data["repeat"]["alternate"]
+            self.repeat_alternate = pattern.get("alternate", 1)
 
             # Amount and spacing
-            self.repeat_horizontal = data["repeat"]["horizontal"]
-            self.repeat_horizontal_amount = self.repeat_horizontal["amount"]
-            self.repeat_horizontal_spacing = self.repeat_horizontal["spacing"]
-            self.repeat_vertical = data["repeat"]["vertical"]
-            self.repeat_vertical_amount = self.repeat_vertical["amount"]
-            self.repeat_vertical_spacing = self.repeat_vertical["spacing"]
+            self.repeat_horizontal = pattern.get(
+                "horizontal", {"amount": None, "spacing": None}
+            )
+            self.repeat_horizontal_amount = self.repeat_horizontal.get("amount", None)
+            self.repeat_horizontal_spacing = self.repeat_horizontal.get("spacing", None)
+            self.repeat_vertical = pattern.get(
+                "vertical", {"amount": None, "spacing": None}
+            )
+            self.repeat_vertical_amount = self.repeat_vertical.get("amount", None)
+            self.repeat_vertical_spacing = self.repeat_vertical.get("spacing", None)
 
-            self.repeat_broken = data["repeat"]["broken"]
+            self.repeat_broken_factor = pattern.get("broken", {"factor": None}).get(
+                "factor"
+            )
+            self.repeat_broken_factor_rounding = pattern.get(
+                "broken", {"factor_rounding": "round"}
+            ).get("factor_rounding")
 
             # Skip edges so they do not contain any broken elements
-            self.repeat_broken_skip_edge = self.repeat_broken["skip_edge"]
+            self.repeat_broken_skip_edge = pattern.get(
+                "broken", {"skip_edge": True}
+            ).get("skip_edge")
 
             # Image placeholder
-            self.repeat_broken_images = self.repeat_broken["images"]
+            self.repeat_broken_images = pattern.get("broken", {"images": []}).get(
+                "images"
+            )
             if self.repeat_broken_images:
                 for broken_image_index, broken_image in enumerate(
                     self.repeat_broken_images
@@ -115,10 +120,10 @@ class SVGmaker:
 
             self.is_broken = False
             self.broken_factor = 0
-            if self.repeat_broken["factor"]:
+            if self.repeat_broken_factor:
                 self.is_broken = True
-                if self.repeat_broken["factor"] > 0:
-                    self.broken_factor = self.repeat_broken["factor"]
+                if self.repeat_broken_factor > 0:
+                    self.broken_factor = self.repeat_broken_factor
 
             # Pattern single polygon calculated dimensions
             self.calculated_single_polygon_width_for_pattern = self.width / (
@@ -139,36 +144,47 @@ class SVGmaker:
                 self.calculated_single_polygon_width_for_pattern / self.width
             )
 
-        # Output
-        self.output_directory = str(output_directory)
-        self.output_file_name = self._file_naming(data)
-
-    def xml_init(self, shape_rendering: str = "geometricprecision") -> str:
-        """
-        Init XML.
-        """
-        xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
-        xml_str += (
+    def xml_initialise(self) -> str:
+        xml_string = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
+        xml_string += (
             '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
             '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
         )
-        xml_str += (
-            '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" '
-            'preserveAspectRatio="xMidYMid meet" '
+        xml_string += (
+            '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="'
+            + self.preset.get("output", {})
+            .get("svg", {})
+            .get("preserveAspectRatio", "xMinYMin meet")
+            + '" '
         )
-        xml_str += (
+        xml_string += (
             'width="' + str(self.width) + 'px" height="' + str(self.height) + 'px" '
         )
-        xml_str += 'viewBox="' + self.join_view_box_list(self.view_box) + '">\r\n'
-        xml_str += '<g style="shape-rendering: ' + shape_rendering + ';">\r\n'
-        xml_str += self.poly_placeholder
-        xml_str += "</g>\r\n"
-        xml_str += "<desc>" + self.svg_desc + "</desc>"
-        xml_str += "</svg>"
+        xml_string += 'viewBox="' + self._join_view_box_list(self.view_box) + '">\r\n'
+        xml_string += (
+            '<g style="shape-rendering: '
+            + self.preset.get("output", {})
+            .get("svg", {})
+            .get("style", {})
+            .get("shape-rendering", "geometricPrecision")
+            + ';">\r\n'
+        )
+        xml_string += self.poly_placeholder
+        xml_string += "</g>\r\n"
+        xml_string += (
+            "<desc>"
+            + self.svg_description
+            + " | Created at: "
+            + _get_formatted_datetime()
+            + " | Options: "
+            + self.safe_base_encoded_preset
+            + "</desc>"
+        )
+        xml_string += "</svg>"
 
-        return xml_str
+        return xml_string
 
-    def xml_init_pattern(self, shape_rendering: str = "geometricprecision") -> str:
+    def xml_initialise_pattern(self) -> str:
         """
         Init XML pattern.
         """
@@ -178,17 +194,19 @@ class SVGmaker:
         view_box[2] = view_box[2] * self.repeat_horizontal_amount - self.width
         view_box[3] = view_box[3] / self.repeat_vertical_amount
 
-        xml_str = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
-        xml_str += (
+        xml_string = '<?xml version="1.0" encoding="UTF-8"?>\r\n'
+        xml_string += (
             '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
             '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\r\n'
         )
-        xml_str += (
-            '<svg version="1.1" id="" xmlns="http://www.w3.org/2000/svg" '
-            'preserveAspectRatio="xMinYMin meet" '
+        xml_string += (
+            '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="'
+            + self.preset.get("output", {})
+            .get("svg", {})
+            .get("preserveAspectRatio", "xMinYMin meet")
+            + '" '
         )
-
-        xml_str += (
+        xml_string += (
             'width="'
             + str(self.pattern_width)
             + 'px" '
@@ -196,23 +214,38 @@ class SVGmaker:
             + str(self.pattern_height)
             + 'px" '
         )
-        xml_str += 'viewBox="' + self.join_view_box_list(view_box) + '">\r\n'
-        xml_str += '<g style="shape-rendering: ' + shape_rendering + ';">\r\n'
-        xml_str += self.poly_placeholder
-        xml_str += "</g>\r\n"
-        xml_str += "<desc>" + self.svg_desc + "</desc>\r\n"
-        xml_str += "</svg>"
+        xml_string += 'viewBox="' + self._join_view_box_list(view_box) + '">\r\n'
+        xml_string += (
+            '<g style="shape-rendering: '
+            + self.preset.get("output", {})
+            .get("svg", {})
+            .get("style", {})
+            .get("shape-rendering", "geometricPrecision")
+            + ';">\r\n'
+        )
+        xml_string += self.poly_placeholder
+        xml_string += "</g>\r\n"
+        xml_string += (
+            "<desc>"
+            + self.svg_description
+            + " | Created at: "
+            + _get_formatted_datetime()
+            + " | Options: "
+            + self.safe_base_encoded_preset
+            + "</desc>"
+        )
+        xml_string += "</svg>"
 
-        return xml_str
+        return xml_string
 
-    def xml_poly(self, polygon: list):
+    def xml_polygon_points(self, polygons_and_colours: list):
         """Create polygon segments"""
 
         xml_final = ""
-        for _, part in enumerate(polygon):
+        for _, part in enumerate(polygons_and_colours):
             xml_poly = "<g>"
             poly = part["polygon"]
-            colors = part["color"]
+            colours = part["colour"]
 
             for current_index_polygon, poly_slice in enumerate(poly):
                 # Check if image was substituted in broken polygon
@@ -220,19 +253,19 @@ class SVGmaker:
                     xml_poly += poly_slice
                     continue
 
-                hex_color = self.rgb2hex(
-                    colors[current_index_polygon][0],
-                    colors[current_index_polygon][1],
-                    colors[current_index_polygon][2],
+                polygon_hexadecimal_colours = self.rgb_to_hexadecimal_notation(
+                    colours[current_index_polygon][0],
+                    colours[current_index_polygon][1],
+                    colours[current_index_polygon][2],
                 )
 
                 xml_poly += (
                     '<path d="M'
                     + " ".join("%s,%s" % tup for tup in poly_slice)
                     + 'Z" fill="'
-                    + hex_color
+                    + polygon_hexadecimal_colours
                     + '" fill-opacity="'
-                    + str(colors[current_index_polygon][3])
+                    + str(colours[current_index_polygon][3])
                     + '"/>'
                 )
             xml_poly += "</g>"
@@ -326,6 +359,7 @@ class SVGmaker:
             self._round_value(self.broken_factor * total_visible_count)
         )
 
+        random.seed(self.preset.get("seed", None))
         sampled_broken_list = random.sample(
             complete_index_collection, max_amount_broken_polygons
         )
@@ -350,42 +384,77 @@ class SVGmaker:
 
         xml_pattern = []
         for current_polygon in polygons:
-            xml_pattern.append("<g>" + self.xml_poly(current_polygon) + "</g>")
+            xml_pattern.append(
+                "<g>" + self.xml_polygon_points(current_polygon) + "</g>"
+            )
 
         return {"paths": xml_pattern, "string": "\r\n".join(xml_pattern)}
 
-    def save_svg(self, content) -> str:
-        """Write string as SVG"""
+    def xml_result(self, polygon_output) -> str:
+        svg_str = self.xml_initialise()
+        svg_poly = self.xml_polygon_points(polygon_output)
 
-        svg_file = f"{self.output_directory}/{_get_formatted_datetime()}_{self.output_file_name}.svg"
-        text_file = open(svg_file, "wt")
+        return svg_str.replace(self.poly_placeholder, svg_poly)
+
+    def prepare_output_path(
+        self,
+        input_file,
+        output_path,
+        output_extension,
+        unique_output_file_name: bool = False,
+        file_prefix: str = "",
+    ) -> Path:
+        output_extension_with_leading_dot = "." + output_extension.lstrip(".")
+        if output_path.is_dir():
+            output_file = output_path.joinpath(
+                input_file.stem + output_extension_with_leading_dot
+            )
+        else:
+            output_file = Path(
+                f"{output_path.with_suffix('')}{output_extension_with_leading_dot}"
+            )
+
+        # Use file prefix in output filename
+        output_file = Path(
+            f"{output_file.with_suffix('')}{'_' + file_prefix if file_prefix else ''}{output_extension_with_leading_dot}"
+        )
+
+        if unique_output_file_name:
+            output_file = f"{output_file.with_suffix('')}_{_get_formatted_datetime()}{output_extension_with_leading_dot}"
+
+        return output_file
+
+    def save_svg(self, content, output_path: Path) -> None:
+        text_file = open(str(output_path), "wt")
         text_file.write(content)
         text_file.close()
 
-        return svg_file
-
-    def save_png(self, content) -> str:
-        """Save SVG to PNG"""
-
-        png_file = f"{self.output_directory}/{_get_formatted_datetime()}_{self.output_file_name}.png"
-        svg2png(bytestring=content, write_to=png_file)
-
-        return png_file
+    def save_png(self, content, output_path: Path) -> None:
+        try:
+            svg2png(bytestring=content, write_to=str(output_path))
+        except CairoError as e:
+            raise SvgToPngImageError(str(e))
 
     # noinspection PyMethodMayBeStatic
-    def join_view_box_list(self, view_box, deli=" ") -> str:
+    def _join_view_box_list(self, view_box, deli=" ") -> str:
         """Join lists/tuples to string"""
 
         return deli.join(map(str, view_box))
 
-    def rgb2hex(self, red_value, green_value, blue_value) -> str:
+    def rgb_to_hexadecimal_notation(self, red_value, green_value, blue_value) -> str:
         """RGB to Hexadecimal"""
 
         return "#{0:02x}{1:02x}{2:02x}".format(
-            self._rgbounds(red_value),
-            self._rgbounds(green_value),
-            self._rgbounds(blue_value),
+            self._rgb_boundary(red_value),
+            self._rgb_boundary(green_value),
+            self._rgb_boundary(blue_value),
         )
+
+    # noinspection PyMethodMayBeStatic
+    def _rgb_boundary(self, integer_value) -> int:
+        """RGB boundaries"""
+
+        return max(0, min(integer_value, 255))
 
     # noinspection PyMethodMayBeStatic
     def _determine_external_svg_dimensions(self, xml_string) -> dict:
@@ -415,18 +484,18 @@ class SVGmaker:
         additional_svg_dimension_tags = []
         # If no "width" or "height" attribute was available in SVG, set it, else it won't be displayed in pattern.
         if svg_width is None:
-            svg_width = match_viewbox.group("width")
+            svg_width = match_viewbox.group("width")  # type: ignore[union-attr]
             additional_svg_dimension_tags.append(f'width="{svg_width}"')
 
         if svg_height is None:
-            svg_height = match_viewbox.group("height")
+            svg_height = match_viewbox.group("height")  # type: ignore[union-attr]
             additional_svg_dimension_tags.append(f'height="{svg_height}"')
 
         if additional_svg_dimension_tags:
             xml_string = xml_string.replace(
-                match_viewbox.group("viewBox"),
+                match_viewbox.group("viewBox"),  # type: ignore[union-attr]
                 (
-                    match_viewbox.group("viewBox")
+                    match_viewbox.group("viewBox")  # type: ignore[union-attr]
                     + " "
                     + " ".join(additional_svg_dimension_tags)
                 ),
@@ -452,39 +521,18 @@ class SVGmaker:
         return match_svg.group()
 
     # noinspection PyMethodMayBeStatic
-    def _file_naming(self, data) -> str:
-        """File naming based on preset options"""
-
-        return "_".join(
-            [
-                "{}-{}".format(k, v)
-                for k, v in data.items()
-                if k not in ["repeat", "colors"]
-            ]
-        )
-
-    # noinspection PyMethodMayBeStatic
-    def _rgbounds(self, integer_value) -> int:
-        """RGB boundaries"""
-
-        return max(0, min(integer_value, 255))
-
-    # noinspection PyMethodMayBeStatic
-    def _check_viewbox(self, view_box_dimensions) -> list:
+    def _check_viewbox_dimensions(self, view_box_dimensions) -> list:
         """Check viewbox numerical values"""
 
         view_box = [s for s in view_box_dimensions if isinstance(s, (int, float))]
         if len(view_box) != len(view_box_dimensions):
-            raise Exception(
-                "Invalid viewbox specified. Please make sure that the viewbox only contains "
-                "numerical values."
-            )
+            raise InvalidViewBoxError
 
         return view_box
 
     # noinspection PyMethodMayBeStatic
     def _round_value(self, val) -> int:
-        match self.repeat_broken.get("factor_rounding", "round"):
+        match self.repeat_broken_factor_rounding:
             case "floor":
                 return np.floor(val)
             case "ceil":

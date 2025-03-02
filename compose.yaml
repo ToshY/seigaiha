@@ -1,9 +1,8 @@
-version: "3.9"
-
 services:
-  seigaiha:
+  dev:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     volumes:
-      - ./:/app
+      - .:/app

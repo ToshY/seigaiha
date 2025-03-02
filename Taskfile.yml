@@ -1,39 +1,92 @@
 version: '3'
 
 vars:
-  SERVICE: seigaiha
+  IMAGE: toshy/seigaiha
 
 env:
   UID:
     sh: id -u
   GID:
     sh: id -g
+  DOCKER_COMPOSE_RUN: docker compose --progress quiet run --rm --build --remove-orphans
 
 tasks:
   default:
     cmds:
       - task --list
 
-  # Application
-  run:
-    desc: Create Seigaiha pattern from JSON preset file or string
+  # Docker
+  build:
+    desc: Build local images
     vars:
-      PRESET: '{{.p | default "default.json"}}'
+      TARGETS: [ 'dev', 'prod' ]
     cmds:
-      - docker compose run --rm {{.SERVICE}} python main.py -p '{{.PRESET}}'
+      - for:
+          var: TARGETS
+        cmd: docker buildx build --load --target {{.ITEM}} --tag {{.IMAGE}}:{{.ITEM}} .
 
-  run:times:
-    desc: Create Seigaiha pattern from JSON preset file or string X amount of times
-    vars:
-      TIMES: '{{.t | default 10}}'
-      PRESET: '{{.p | default "default.json"}}'
+  down:
+    desc: Down service
     cmds:
+      - docker compose down {{.CLI_ARGS | default "--rmi local --remove-orphans"}}
+
+  # Shell
+  shell:dev:
+    desc: Container shell
+    vars:
+      TARGET: 'dev'
+    cmds:
+      - $DOCKER_COMPOSE_RUN {{.TARGET}} {{.CLI_ARGS | default "/bin/bash"}}
+
+  shell:prod:
+    desc: Container shell prod
+    vars:
+      TARGET: 'prod'
+      INPUT_DIRECTORY: '{{.i | default "input"}}'
+      OUTPUT_DIRECTORY: '{{.o | default "output"}}'
+    cmds:
+      - docker buildx build --quiet --load --target {{.TARGET}} --tag {{.IMAGE}}:{{.TARGET}} .
+      - docker run -it -u $(id -u):$(id -g) -v ${PWD}/{{.INPUT_DIRECTORY}}:/app/input -v ${PWD}/{{.OUTPUT_DIRECTORY}}:/app/output --entrypoint="/bin/bash" --rm {{.IMAGE}}:{{.TARGET}} {{.CLI_ARGS}}
+
+  # Test
+  dev:
+    desc: Test dev image (compose)
+    vars:
+      TARGET: 'dev'
+      INPUT_DIRECTORY: '{{.i | default "input"}}'
+      OUTPUT_DIRECTORY: '{{.o | default "output"}}'
+    cmds:
+      - mkdir -p ${PWD}/{{.INPUT_DIRECTORY}} ${PWD}/{{.OUTPUT_DIRECTORY}}
+      - $DOCKER_COMPOSE_RUN -u $(id -u):$(id -g) {{.TARGET}} python -m seigaiha {{.CLI_ARGS}}
+
+  dev:times:
+    desc: Test dev image (compose) multiple times
+    vars:
+      TARGET: 'dev'
+      INPUT_DIRECTORY: '{{.i | default "input"}}'
+      OUTPUT_DIRECTORY: '{{.o | default "output"}}'
+      TIMES: '{{.t | default 10}}'
+    cmds:
+      - mkdir -p ${PWD}/{{.INPUT_DIRECTORY}} ${PWD}/{{.OUTPUT_DIRECTORY}}
       - |
         for i in {1..{{.TIMES}}}
         do
-           docker compose run --rm {{.SERVICE}} python main.py -p '{{.PRESET}}'
+           $DOCKER_COMPOSE_RUN -u $(id -u):$(id -g) {{.TARGET}} python -m seigaiha {{.CLI_ARGS}}
         done
 
+  prod:
+    desc: Test prod image (docker)
+    silent: true
+    vars:
+      TARGET: 'prod'
+      INPUT_DIRECTORY: '{{.i | default "input"}}'
+      OUTPUT_DIRECTORY: '{{.o | default "output"}}'
+    cmds:
+      - docker buildx build --quiet --load --target {{.TARGET}} --tag {{.IMAGE}}:{{.TARGET}} .
+      - mkdir -p ${PWD}/{{.INPUT_DIRECTORY}} ${PWD}/{{.OUTPUT_DIRECTORY}}
+      - docker run -it -u $(id -u):$(id -g) -v ${PWD}/{{.INPUT_DIRECTORY}}:/app/input -v ${PWD}/{{.OUTPUT_DIRECTORY}}:/app/output --rm {{.IMAGE}}:{{.TARGET}} {{.CLI_ARGS}}
+
+  # Misc
   svg2base:
     desc: SVG to Base64 string
     vars:
@@ -41,40 +94,40 @@ tasks:
     cmds:
       - cat "{{.INPUT}}" | base64 -w 0 > "{{.INPUT}}.txt"
 
-  # Docker
-  up:
-    desc: Up service
+  # Development tools
+  ruff:
+    desc: Run ruff
     cmds:
-      - docker compose up -d {{.CLI_ARGS | default "--build --remove-orphans --force-recreate"}}
+      - $DOCKER_COMPOSE_RUN dev ruff check .
 
-  down:
-    desc: Down service
+  ruff:fix:
+    desc: Run ruff fix
     cmds:
-      - docker compose down {{.CLI_ARGS | default "--rmi local --remove-orphans"}}
+      - $DOCKER_COMPOSE_RUN dev ruff check --fix .
 
-  # Tools
-  contribute:
-    desc: Tasks for contributing
-    cmds:
-      - task: tools:pylint
-      - task: tools:pycodestyle
-
-  tools:pylint:
-    desc: Run pylint
-    cmds:
-      - docker compose run --rm {{.SERVICE}} pylint --max-line-length=120 --recursive=y .
-
-  tools:pycodestyle:
-    desc: Run pycodestyle
-    cmds:
-      - docker compose run --rm {{.SERVICE}} pycodestyle --max-line-length=120 --show-source .
-
-  tools:black:check:
-    desc: Run black dryrun
-    cmds:
-      - docker compose run --rm {{.SERVICE}} black . --diff --color
-
-  tools:black:fix:
+  black:
     desc: Run black
     cmds:
-      - docker compose run --rm {{.SERVICE}} black .
+      - $DOCKER_COMPOSE_RUN dev black . --check --diff --color
+
+  black:fix:
+    desc: Run black fix
+    cmds:
+      - $DOCKER_COMPOSE_RUN dev black .
+
+  mypy:
+    desc: Run mypy
+    cmds:
+      - $DOCKER_COMPOSE_RUN dev mypy .
+
+  mkdocs:
+    desc: MkDocs build
+    cmds:
+      - docker run --rm -it -v ${PWD}:/docs ghcr.io/squidfunk/mkdocs-material:9.6 build
+
+  mkdocs:live:
+    desc: MkDocs development server
+    vars:
+      PORT: '{{.p | default "8001"}}'
+    cmds:
+      - docker run --rm -it -p {{.PORT}}:8000 -v ${PWD}:/docs ghcr.io/squidfunk/mkdocs-material:9.6

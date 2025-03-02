@@ -1,95 +1,19 @@
-"""
-@author: ToshY
-"""
+import click
+
+from loguru import logger
 
 import random
-import argparse
 import math
-import sys
-from pathlib import Path
 from itertools import cycle
-from rich import print
-from shapely.geometry import Polygon, Point, LineString
-from shapely import affinity
-from src.args import InputCheck
-from src.banner import cli_banner
-from src.svg import SVGmaker
-from src.general import read_json_from_file, read_json_from_string
-
-
-def cli_args():
-    """
-    Command Line argument parser.
-    """
-
-    # Arguments
-    parser = argparse.ArgumentParser(description=__doc__)
-    # noinspection PyTypeChecker
-    parser.add_argument(
-        "-p",
-        "--preset",
-        type=str,
-        required=True,
-        action=InputCheck,
-        const=False,
-        nargs="+",
-        help="Path to JSON file or string with preset options",
-    )
-
-    args = parser.parse_args()
-
-    user_args = input_arguments(args.preset)
-
-    return user_args
-
-
-def input_arguments(presets: list):
-    """
-    Check the presets.
-    """
-
-    outputs = [{"type": "directory", "value": Path(OUTPUT_DIRECTORY).resolve()}]
-
-    len_presets = len(presets)
-    len_outputs = len(outputs)
-
-    if len_presets != len_outputs:
-        if len_outputs != 1:
-            raise Exception(
-                f"[red]Amount of preset arguments ({len_presets}) "
-                f"does not equal the amount of output arguments ({len_outputs})."
-            )
-
-    # Prepare inputs/outputs/presets
-    batch = {}
-    for element_index, element in enumerate(presets):
-        data = {}
-        file_path = element["value"]
-        data_type = element["type"]
-
-        if data_type == "json":
-            data = read_json_from_string(file_path)
-        elif data_type == "file":
-            data = read_json_from_file(file_path)
-
-        if len_outputs == 1:
-            output_files = [[*outputs][0]]
-        else:
-            output_files = outputs[0]
-            outputs.pop(0)
-
-        batch[str(element_index)] = {
-            "input": [
-                {
-                    "type": data_type,
-                    "value": [file_path],
-                }
-            ],
-            "data": data,
-            "output": output_files,
-        }
-
-    return batch
+from shapely.geometry import Polygon, Point, LineString  # type: ignore[import-untyped]
+from shapely import affinity  # type: ignore[import-untyped]
+from seigaiha.args import (
+    OutputPathChecker,
+    OptionalValueChecker,
+    InputPathChecker,
+)
+from seigaiha.helper import combine_arguments_by_batch
+from seigaiha.svg import SVGmaker
 
 
 def get_polygon_points(corners: int, width: int) -> list:
@@ -135,21 +59,21 @@ def get_polygon_coordinates(polygon_collection) -> list:
     return list(polygon_collection.exterior.coords)[:-1]
 
 
-def get_colors(polygon_collection: list, polygon_colors: list):
+def get_colours(polygon_collection: list, polygon_colours: list):
     """
-    Get alternating colors for polygon filling.
+    Get alternating colours for polygon filling.
     """
 
     polygon_count = len(polygon_collection)
-    if len(polygon_colors) < polygon_count:
-        color_cycle = cycle(polygon_colors)
-        color_repeat_collection = []
+    if len(polygon_colours) < polygon_count:
+        colour_cycle = cycle(polygon_colours)
+        colour_repeat_collection = []
         for _ in range(0, polygon_count):
-            color_repeat_collection.append(next(color_cycle))
+            colour_repeat_collection.append(next(colour_cycle))
 
-        return color_repeat_collection
+        return colour_repeat_collection
 
-    return polygon_colors
+    return polygon_colours
 
 
 def translate_polygon(
@@ -214,7 +138,7 @@ def get_polygon_dimensions(
 def create_polygon(
     polygon_corners,
     polygon_fractions,
-    polygon_colors,
+    polygon_colours,
     polygon_width,
     spacing=0.5,
     polygon_rotation=0,
@@ -242,7 +166,6 @@ def create_polygon(
 
     # Rotate
     if polygon_rotation != 0:
-        # Rotate
         polygon = rotate_polygon(polygon, polygon_rotation)
         (
             x_coordinate_1,
@@ -336,82 +259,164 @@ def create_polygon(
     # Get coords back
     polygon_coordinates = get_polygon_coordinates(polygon_collection)
 
-    # Get colors to fill
-    polygon_colors = get_colors(polygon_collection, polygon_colors)
+    # Get colours to fill
+    polygon_colours = get_colours(polygon_collection, polygon_colours)
 
-    return [boundary_box, polygon_collection, polygon_coordinates, polygon_colors]
+    return [boundary_box, polygon_collection, polygon_coordinates, polygon_colours]
 
 
-def main():
-    """
-    Main
-    """
-    presets = cli_args()
+@logger.catch
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="Repository: https://github.com/ToshY/seigaiha",
+)
+@click.option(
+    "--input-path",
+    "-i",
+    type=click.Path(exists=True, dir_okay=True, file_okay=True, resolve_path=True),
+    required=False,
+    multiple=True,
+    callback=InputPathChecker(),
+    show_default=True,
+    default=["./input"],
+    help="Path to input file or directory with preset options",
+)
+@click.option(
+    "--output-path",
+    "-o",
+    type=click.Path(dir_okay=True, file_okay=True, resolve_path=True),
+    required=False,
+    multiple=True,
+    callback=OutputPathChecker(),
+    show_default=True,
+    default=["./output"],
+    help="Path to output file or directory",
+)
+@click.option(
+    "--extension",
+    "-e",
+    type=click.Choice(['["svg", "png"]', '["svg"]', '["png"]']),
+    required=False,
+    multiple=True,
+    callback=OptionalValueChecker(),
+    show_default=True,
+    default=['["svg", "png"]'],
+    help="Output file extension",
+)
+@click.option(
+    "--unique-filename/--no-unique-filename",
+    is_flag=True,
+    show_default=True,
+    default=True,
+    help="Create files with unique filenames by using current datetime suffix",
+)
+def cli(
+    input_path,
+    output_path,
+    extension,
+    unique_filename,
+):
+    combined_result = combine_arguments_by_batch(input_path, output_path, extension)
 
-    # Iterate over presets
-    for _, item in presets.items():
-        for current_file_index, _ in enumerate(item["input"]):
-            # Check if first/last item for reporting
-            output = item["output"][current_file_index]["value"]
-            data = item["data"]
-            width = data["width"]
-            fractions = data["fractions"]
-            edges = data["edges"]
-            spacing = data["spacing"]
-            rotation = data["rotation"]
-            pattern = data["pattern"]
-            colors = data["colors"]
+    for item in combined_result:
+        current_batch = item.get("batch")
+        current_output_extension = item.get("extension")
+        current_output = item.get("output").get("resolved")
+        current_input_original_batch_name = item.get("input").get("given")
+        current_input_files = item.get("input").get("resolved")
+        total_current_input_files = len(current_input_files)
 
-            # colors to tuple
-            colors = [tuple(el.values()) for el in colors]
+        for current_file_path_index, current_file_item in enumerate(
+            current_input_files
+        ):
+            if current_file_path_index == 0:
+                logger.info(
+                    f"Seigaiha batch `{current_batch}` for `{current_input_original_batch_name}` started."
+                )
+
+            current_file_path = current_file_item.get("path")
+            current_preset = current_file_item.get("content")
+
+            seed = current_preset.get("seed", None)
+            random.seed(seed)
+
+            width = current_preset.get("output", {"resolution": 2500}).get("resolution")
+            fractions = current_preset.get("fractions")
+            edges = current_preset.get("edges", 36)
+            spacing = current_preset.get("spacing", 0)
+            rotation = current_preset.get("rotation", 0)
+            pattern = current_preset.get("pattern", False)
+            colours = current_preset.get("colours", [])
+
+            # colours to tuple
+            colours = [tuple(el.values()) for el in colours]
 
             # Create polygon object
-            box_dims, polygon_objects, polygon_coords, colors_format = create_polygon(
-                edges, fractions, colors, width, spacing, rotation
+            box_dimensions, polygon_objects, polygon_coordinates, colours_format = (
+                create_polygon(edges, fractions, colours, width, spacing, rotation)
             )
 
             # Init SVGmaker
-            svg_maker = SVGmaker(data, output, [box_dims["width"], box_dims["height"]])
+            svg_maker = SVGmaker(
+                current_preset, [box_dimensions["width"], box_dimensions["height"]]
+            )
 
             # Create single SVG string
-            svg_str = svg_maker.xml_init()
-            svg_poly = svg_maker.xml_poly(
-                [{"polygon": polygon_coords, "broken": False, "color": colors_format}]
-            )
-            svg_finalized = svg_str.replace(svg_maker.poly_placeholder, svg_poly)
+            polygons_and_colours = [
+                {
+                    "polygon": polygon_coordinates,
+                    "broken": False,
+                    "colour": colours_format,
+                }
+            ]
+            xml_result = svg_maker.xml_result(polygons_and_colours)
 
-            # Save and print
-            print(
-                f"\r > Saved polygon to [cyan]{svg_maker.save_svg(svg_finalized)}[/cyan] & [cyan]{svg_maker.save_png(svg_finalized)}[/cyan]"
-            )
+            for output_extension in current_output_extension:
+                output_path = svg_maker.prepare_output_path(
+                    current_file_path,
+                    current_output,
+                    output_extension,
+                    unique_filename,
+                )
+                if output_extension == "svg":
+                    svg_maker.save_svg(xml_result, output_path)
 
-            # Create pattern
+                if output_extension == "png":
+                    svg_maker.save_png(xml_result, output_path)
+
+                logger.info(f"Saved Seigaiha element to `{str(output_path)}`.")
+
+            # %% pattern
             if pattern:
-                svg_str_pattern = svg_maker.xml_init_pattern()
+                svg_str_pattern = svg_maker.xml_initialise_pattern()
                 svg_pattern = svg_maker.xml_setup_pattern()
 
                 # "Broken" polygon should be a "normal" polygon if a broken pattern is not specified
                 broken_polygon = polygon_objects[:fractions]
 
-                broken_pattern = data["repeat"]["broken"]
+                broken_pattern = pattern.get("broken", False)
                 if broken_pattern:
-                    # Prepare broken polygon and colors
-                    broken_colors_tuple = [
-                        tuple(el.values()) for el in broken_pattern["colors"]
+                    # Prepare broken polygon and colours
+                    broken_colours_tuple = [
+                        tuple(el.values())
+                        for el in broken_pattern.get(
+                            "colours", current_preset.get("colours", [])
+                        )
                     ]
 
-                    _, broken_polygon_objects, _, broken_colors_format = create_polygon(
-                        edges,
-                        broken_pattern["fractions"],
-                        broken_colors_tuple,
-                        width,
-                        spacing,
-                        rotation,
+                    fractions = broken_pattern.get("fractions", fractions)
+                    _, broken_polygon_objects, _, broken_colours_format = (
+                        create_polygon(
+                            edges,
+                            fractions,
+                            broken_colours_tuple,
+                            width,
+                            spacing,
+                            rotation,
+                        )
                     )
 
-                    broken_polygon = broken_polygon_objects[
-                        : broken_pattern["fractions"]
-                    ]
+                    broken_polygon = broken_polygon_objects[:fractions]
 
                 # Create copies of the initial "single" polygon and translate conform pattern
                 pattern_polygons_objects = []
@@ -523,9 +528,11 @@ def main():
                             {
                                 "polygon": single_polygon_coords_new,
                                 "broken": is_broken,
-                                "color": colors_format
-                                if not is_broken
-                                else broken_colors_format,
+                                "colour": (
+                                    colours_format
+                                    if not is_broken
+                                    else broken_colours_format
+                                ),
                             }
                         )
 
@@ -542,29 +549,25 @@ def main():
                 svg_finalized_pattern = svg_str_pattern.replace(
                     svg_maker.poly_placeholder, svg_poly_pattern["string"]
                 )
+                for output_extension in current_output_extension:
+                    output_path = svg_maker.prepare_output_path(
+                        current_file_path,
+                        current_output,
+                        output_extension,
+                        unique_filename,
+                        "seigaiha",
+                    )
+                    if output_extension == "svg":
+                        svg_maker.save_svg(svg_finalized_pattern, output_path)
 
-                # Save and print
-                print(
-                    f"\r > Saved pattern to [cyan]{svg_maker.save_svg(svg_finalized_pattern)}[/cyan] & [cyan]{svg_maker.save_png(svg_finalized_pattern)}[/cyan]"
-                )
+                    if output_extension == "png":
+                        svg_maker.save_png(svg_finalized_pattern, output_path)
 
-                return [
-                    pattern_container,
-                    pattern_polygon_container,
-                    pattern_polygons_objects,
-                    pattern_polygon_coordinates,
-                ]
+                    logger.info(f"Saved Seigaiha pattern to `{str(output_path)}`.")
 
+            if current_file_path_index != total_current_input_files - 1:
+                continue
 
-if __name__ == "__main__":
-    cli_banner("Seigaiha")
-
-    # Stop execution at keyboard input
-    try:
-        OUTPUT_DIRECTORY = "./output"
-        PRESET_DIRECTORY = "./preset"
-
-        svgs = main()
-    except KeyboardInterrupt:
-        print("\r\n\r\n> [red]Execution cancelled by user[/red]")
-        sys.exit()
+            logger.info(
+                f"Seigaiha batch `{current_batch}` for `{current_input_original_batch_name}` finished."
+            )
