@@ -340,7 +340,13 @@ def cli(
             seed = current_preset.get("seed", None)
             random.seed(seed)
 
-            width = current_preset.get("output", {"resolution": 2500}).get("resolution")
+            default_resolution = 2500
+            width = current_preset.get(
+                "output", {"resolution": default_resolution}
+            ).get("resolution")
+            if width is None:
+                width = default_resolution
+
             fractions = current_preset.get("fractions")
             edges = current_preset.get("edges", 36)
             spacing = current_preset.get("spacing", 0)
@@ -387,7 +393,7 @@ def cli(
                 logger.info(f"Saved Seigaiha element to `{str(output_path)}`.")
 
             # %% pattern
-            if pattern:
+            if isinstance(pattern, dict):
                 svg_str_pattern = svg_maker.xml_initialise_pattern()
                 svg_pattern = svg_maker.xml_setup_pattern()
 

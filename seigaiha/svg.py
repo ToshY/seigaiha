@@ -54,7 +54,7 @@ class SVGmaker:
 
         # Pattern
         pattern = user_preset.get("pattern", False)
-        if pattern:
+        if isinstance(pattern, dict):
             # Alternate
             self.repeat_alternate = pattern.get("alternate", 1)
 
