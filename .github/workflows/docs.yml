@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Build docs
         run: docker run --rm -v ${PWD}:/docs ghcr.io/squidfunk/mkdocs-material:9.6 build
