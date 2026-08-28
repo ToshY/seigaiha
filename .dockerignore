@@ -16,4 +16,5 @@ Taskfile.yml
 input/
 output/
 docs/
-mkdocs.yml
+site/
+zensical.toml
