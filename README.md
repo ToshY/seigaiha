@@ -9,6 +9,7 @@
     <img src="https://img.shields.io/github/actions/workflow/status/toshy/seigaiha/codestyle.yml?branch=main&label=Black" alt="Black">
     <img src="https://img.shields.io/github/actions/workflow/status/toshy/seigaiha/codequality.yml?branch=main&label=Ruff" alt="Ruff">
     <img src="https://img.shields.io/github/actions/workflow/status/toshy/seigaiha/statictyping.yml?branch=main&label=Mypy" alt="Mypy">
+    <img src="https://img.shields.io/github/actions/workflow/status/toshy/seigaiha/test.yml?branch=main&label=Pytest" alt="Pytest">
     <img src="https://img.shields.io/github/actions/workflow/status/toshy/seigaiha/security.yml?branch=main&label=Security%20check" alt="Security check" />
     <br /><br />
     <div>A command-line utility for creating custom traditional and modern wave patterns.</div>

@@ -21,6 +21,7 @@ seigaiha/
   args.py       # click callbacks: InputPathChecker, OutputPathChecker, OptionalValueChecker
   helper.py     # files_in_dir, read_json, combine_arguments_by_batch
   exception.py  # InvalidViewBoxError, SvgToPngImageError
+tests/          # pytest suite; syrupy snapshots in tests/__snapshots__/*.ambr
 input/          # example presets (JSON) — gitignored contents, used as CLI default input dir
 output/         # generated artefacts — gitignored
 docs/           # Zensical docs sources
@@ -61,6 +62,8 @@ task build                  # build dev + prod images
 task dev -- -i input/default.json -o output    # run CLI in dev image (args after --)
 task prod -- -h             # run CLI in prod image
 task shell:dev              # bash in dev container
+task test                   # pytest suite (args after --, e.g. `task test -- -v`)
+task test:snapshot          # rerun with --snapshot-update to rewrite snapshots
 task ruff / task ruff:fix
 task black / task black:fix
 task mypy
@@ -83,10 +86,32 @@ task pinact:fix [t=<token>] # pin them in place
 `task pinact`/`pinact:fix` hit the GitHub API; pass a token via `t=github_pat_...` to avoid rate
 limiting.
 
-Pre-commit (`.pre-commit-config.yaml`, `fail_fast: true`) runs ruff, black and mypy in the dev
-container. CI: `codequality.yml` (ruff), `codestyle.yml` (black), `statictyping.yml` (mypy),
-`security.yml` (pip-audit), `hadolint.yml`, `actionlint.yml`, `zizmor.yml`, `pinact.yml`,
-`docs.yml` (Zensical → GitHub Pages), `release.yml` (publishes the image on GitHub release).
+Pre-commit (`.pre-commit-config.yaml`, `fail_fast: true`) runs ruff, black, mypy and pytest in the
+dev container. CI: `codequality.yml` (ruff), `codestyle.yml` (black), `statictyping.yml` (mypy),
+`test.yml` (pytest), `security.yml` (pip-audit), `hadolint.yml`, `actionlint.yml`, `zizmor.yml`,
+`pinact.yml`, `docs.yml` (Zensical → GitHub Pages), `release.yml` (publishes the image on GitHub
+release).
+
+## Testing
+
+Pytest with [syrupy](https://github.com/syrupy-project/syrupy) snapshots; run it with `task test`.
+`tests/conftest.py` holds the preset fixtures (`single_preset`, `pattern_preset`,
+`broken_pattern_preset`, all at a small `resolution` so PNG rendering stays fast) plus two
+normalisers that make output snapshottable:
+
+- `normalise_svg` — every SVG embeds a render timestamp in its `<desc>` tag and unique filenames
+  carry the same suffix, so both are masked as `<datetime>`; CRLF is folded to LF and floats longer
+  than 6 decimals are rounded.
+- `round_nested` — same rounding for (nested) coordinate lists, dicts and tuples.
+
+Snapshot anything geometry- or XML-shaped (`create_polygon` output, `xml_result`, the pattern grid,
+rendered SVG files) and assert directly on everything else. PNG bytes are deliberately **not**
+snapshotted — Cairo output varies across versions, so those tests only check the PNG magic bytes.
+`tests/test_cli.py` drives the command through click's `CliRunner`; because `cli` is wrapped in
+`@logger.catch` the runner needs the underlying command, kept on `__wrapped__`.
+
+When behaviour changes on purpose, run `task test:snapshot` and review the diff in
+`tests/__snapshots__/*.ambr` before committing — the snapshots are the reference output.
 
 ## Conventions
 
@@ -97,6 +122,8 @@ container. CI: `codequality.yml` (ruff), `codestyle.yml` (black), `statictyping.
 - Module-level functions with short triple-quoted docstrings are the norm in `cli.py`/`helper.py`;
   `SVGmaker` prefixes internal methods with `_`.
 - Logging uses `loguru` (`logger.info`), and `cli` is wrapped in `@logger.catch`.
+- Tests mirror the module they cover (`test_helper.py`, `test_args.py`, `test_polygon.py` for the
+  geometry helpers in `cli.py`, `test_svg.py`, `test_cli.py` for the end-to-end runs).
 - Errors that reach the user are custom exceptions in `exception.py`; invalid CLI input raises
   `click.BadParameter`.
 - GitHub Actions are pinned to commit SHAs with a `# vX.Y.Z` comment, and `pinact.yml` enforces it.
@@ -106,9 +133,9 @@ container. CI: `codequality.yml` (ruff), `codestyle.yml` (black), `statictyping.
 
 ## Gotchas
 
-- **There is no test suite.** Verify changes by rendering presets, e.g.
+- For a visual check on top of the tests, render a preset:
   `task dev -- -i input/default.json -o output` (or `task dev:times t=5 -- ...` for repeated runs),
-  then inspecting the SVG/PNG in `output/`. Large `output.resolution` values (the examples use 8500)
+  then inspect the SVG/PNG in `output/`. Large `output.resolution` values (the examples use 8500)
   make PNG rendering slow — use a small resolution while iterating.
 - `input/` and `output/` are gitignored; example presets already tracked in `input/` are the reference
   fixtures. Don't commit generated artefacts.

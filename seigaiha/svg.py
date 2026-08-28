@@ -1,15 +1,19 @@
-import json
-import re
 import base64
 import datetime
+import json
 import random
+import re
 from pathlib import Path
 
 import numpy as np
 from cairocffi import CairoError  # type: ignore[import-untyped]
 from cairosvg import svg2png  # type: ignore[import-untyped]
 
-from seigaiha.exception import InvalidViewBoxError, SvgToPngImageError
+from seigaiha.exception import (
+    InvalidViewBoxError,
+    SvgExtractionError,
+    SvgToPngImageError,
+)
 
 
 def _get_formatted_datetime():
@@ -17,7 +21,11 @@ def _get_formatted_datetime():
     Get formatted datetime.
     """
 
-    return datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S-%f")
+    return (
+        datetime.datetime.now(tz=datetime.timezone.utc)
+        .astimezone()
+        .strftime("%d-%m-%Y_%H-%M-%S-%f")
+    )
 
 
 class SVGmaker:
@@ -33,8 +41,11 @@ class SVGmaker:
         self,
         user_preset: dict,
         image_dimensions: list,
-        image_view_box: list = [0, 0, -1, -1],
+        image_view_box: list | None = None,
     ):
+        if image_view_box is None:
+            image_view_box = [0, 0, -1, -1]
+
         self.preset = user_preset
         self.safe_base_encoded_preset = base64.b64encode(
             json.dumps(self.preset).encode("utf-8")
@@ -261,7 +272,10 @@ class SVGmaker:
 
                 xml_poly += (
                     '<path d="M'
-                    + " ".join("%s,%s" % tup for tup in poly_slice)
+                    + " ".join(
+                        f"{x_coordinate},{y_coordinate}"
+                        for x_coordinate, y_coordinate in poly_slice
+                    )
                     + 'Z" fill="'
                     + polygon_hexadecimal_colours
                     + '" fill-opacity="'
@@ -365,8 +379,7 @@ class SVGmaker:
         )
         if self.repeat_broken_skip_edge:
             non_edge_count = len(non_edge_index_collection)
-            if non_edge_count < max_amount_broken_polygons:
-                max_amount_broken_polygons = non_edge_count
+            max_amount_broken_polygons = min(max_amount_broken_polygons, non_edge_count)
 
             sampled_broken_list = random.sample(
                 non_edge_index_collection, max_amount_broken_polygons
@@ -425,9 +438,8 @@ class SVGmaker:
         return output_file
 
     def save_svg(self, content, output_path: Path) -> None:
-        text_file = open(str(output_path), "wt")
-        text_file.write(content)
-        text_file.close()
+        with open(str(output_path), "wt") as text_file:
+            text_file.write(content)
 
     def save_png(self, content, output_path: Path) -> None:
         try:
@@ -444,11 +456,11 @@ class SVGmaker:
     def rgb_to_hexadecimal_notation(self, red_value, green_value, blue_value) -> str:
         """RGB to Hexadecimal"""
 
-        return "#{0:02x}{1:02x}{2:02x}".format(
-            self._rgb_boundary(red_value),
-            self._rgb_boundary(green_value),
-            self._rgb_boundary(blue_value),
-        )
+        red = self._rgb_boundary(red_value)
+        green = self._rgb_boundary(green_value)
+        blue = self._rgb_boundary(blue_value)
+
+        return f"#{red:02x}{green:02x}{blue:02x}"
 
     # noinspection PyMethodMayBeStatic
     def _rgb_boundary(self, integer_value) -> int:
@@ -516,7 +528,7 @@ class SVGmaker:
         )
 
         if not match_svg:
-            raise Exception("Could not extract `<svg>` tag from given input image.")
+            raise SvgExtractionError
 
         return match_svg.group()
 

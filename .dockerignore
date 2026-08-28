@@ -17,4 +17,5 @@ input/
 output/
 docs/
 site/
+tests/
 zensical.toml
