@@ -21,11 +21,7 @@ def _get_formatted_datetime():
     Get formatted datetime.
     """
 
-    return (
-        datetime.datetime.now(tz=datetime.timezone.utc)
-        .astimezone()
-        .strftime("%d-%m-%Y_%H-%M-%S-%f")
-    )
+    return datetime.datetime.now().astimezone().strftime("%d-%m-%Y_%H-%M-%S-%f")
 
 
 class SVGmaker:
