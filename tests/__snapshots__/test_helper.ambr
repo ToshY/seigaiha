@@ -1,0 +1,21 @@
+# serializer version: 1
+# name: test_combine_arguments_by_batch_merges_per_batch
+  list([
+    dict({
+      'batch': 1,
+      'extension': list([
+        'svg',
+      ]),
+      'input': 'a',
+      'output': 'x',
+    }),
+    dict({
+      'batch': 2,
+      'extension': list([
+        'png',
+      ]),
+      'input': 'b',
+      'output': 'y',
+    }),
+  ])
+# ---

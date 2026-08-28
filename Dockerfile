@@ -8,10 +8,11 @@ ENV PIP_ROOT_USER_ACTION=ignore
 
 WORKDIR /build
 
+# hadolint ignore=DL3008
 RUN <<EOT bash
   set -ex
   apt-get update
-  apt install -y libcairo2
+  apt-get install -y --no-install-recommends libcairo2
   apt-get clean
   rm -rf /var/lib/apt/lists/*
 EOT
@@ -25,13 +26,13 @@ FROM base AS prod
 
 COPY . .
 
-RUN pip install .
+RUN pip install --no-cache-dir .
 
 WORKDIR /app
 
 RUN <<EOT bash
   set -ex
-  mkdir -p ./{input,output}
+  mkdir -p ./input ./output
   rm -rf /build
 EOT
 

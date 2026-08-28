@@ -1,16 +1,16 @@
-import click
-
-from loguru import logger
-
-import random
 import math
+import random
 from itertools import cycle
-from shapely.geometry import Polygon, Point, LineString  # type: ignore[import-untyped]
+
+import click
+from loguru import logger
 from shapely import affinity  # type: ignore[import-untyped]
+from shapely.geometry import LineString, Point, Polygon  # type: ignore[import-untyped]
+
 from seigaiha.args import (
-    OutputPathChecker,
-    OptionalValueChecker,
     InputPathChecker,
+    OptionalValueChecker,
+    OutputPathChecker,
 )
 from seigaiha.helper import combine_arguments_by_batch
 from seigaiha.svg import SVGmaker
@@ -68,7 +68,7 @@ def get_colours(polygon_collection: list, polygon_colours: list):
     if len(polygon_colours) < polygon_count:
         colour_cycle = cycle(polygon_colours)
         colour_repeat_collection = []
-        for _ in range(0, polygon_count):
+        for _ in range(polygon_count):
             colour_repeat_collection.append(next(colour_cycle))
 
         return colour_repeat_collection
@@ -227,11 +227,11 @@ def create_polygon(
         fractions = []
         for i, fraction_value in enumerate(list(range(1, polygon_fractions + 1))):
             if (i % 2) != 0:
-                fractions.append((fraction_value / polygon_fractions))
+                fractions.append(fraction_value / polygon_fractions)
                 continue
 
             val = (fraction_value / polygon_fractions) - spacing * 1 / polygon_fractions
-            fractions.append(val if val <= 1 else 1)
+            fractions.append(min(val, 1))
     else:
         fractions = [
             v / polygon_fractions for v in list(range(1, polygon_fractions + 1))
@@ -390,7 +390,7 @@ def cli(
                 if output_extension == "png":
                     svg_maker.save_png(xml_result, output_path)
 
-                logger.info(f"Saved Seigaiha element to `{str(output_path)}`.")
+                logger.info(f"Saved Seigaiha element to `{output_path!s}`.")
 
             # %% pattern
             if isinstance(pattern, dict):
@@ -497,7 +497,7 @@ def cli(
                             pattern_polygons_objects_copy[idx][idy]["polygon"]
                         )
 
-                        is_broken = pattern_polygons_objects[idx][idy]["broken"]
+                        is_broken = col["broken"]
 
                         if is_broken and svg_maker.repeat_broken_images:
                             pos_x_offset = svg_maker.width / 2
@@ -569,7 +569,7 @@ def cli(
                     if output_extension == "png":
                         svg_maker.save_png(svg_finalized_pattern, output_path)
 
-                    logger.info(f"Saved Seigaiha pattern to `{str(output_path)}`.")
+                    logger.info(f"Saved Seigaiha pattern to `{output_path!s}`.")
 
             if current_file_path_index != total_current_input_files - 1:
                 continue

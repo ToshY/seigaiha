@@ -1,0 +1,144 @@
+# serializer version: 1
+# name: test_xml_initialise
+  '''
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin meet" width="200px" height="200px" viewBox="0 0 200 200">
+  <g style="shape-rendering: crispEdges;">
+  %polygons%</g>
+  <desc>Rendered with Seigaiha | https://github.com/ToshY/seigaiha | Created at: <datetime> | Options: eyJzZWVkIjogNDIsICJmcmFjdGlvbnMiOiA1LCAiZWRnZXMiOiA2LCAic3BhY2luZyI6IDAuMywgInJvdGF0aW9uIjogMCwgImNvbG91cnMiOiBbeyJSIjogNjUsICJHIjogMTI0LCAiQiI6IDE5MiwgIkEiOiAxfSwgeyJSIjogMjU1LCAiRyI6IDI1NSwgIkIiOiAyNTUsICJBIjogMX1dLCAib3V0cHV0IjogeyJyZXNvbHV0aW9uIjogMjAwLCAic3ZnIjogeyJwcmVzZXJ2ZUFzcGVjdFJhdGlvIjogInhNaW5ZTWluIG1lZXQiLCAic3R5bGUiOiB7InNoYXBlLXJlbmRlcmluZyI6ICJjcmlzcEVkZ2VzIn19fX0=</desc></svg>
+  '''
+# ---
+# name: test_xml_polygon_points
+  '<g><path d="M0,0 10,0 10,10Z" fill="#417cc0" fill-opacity="1"/><path d="M2,2 8,2 8,8Z" fill="#ffffff" fill-opacity="0.5"/></g>'
+# ---
+# name: test_xml_result_replaces_placeholder
+  '''
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" preserveAspectRatio="xMinYMin meet" width="200px" height="200px" viewBox="0 0 200 200">
+  <g style="shape-rendering: crispEdges;">
+  <g><path d="M0,0 10,0 10,10Z" fill="#417cc0" fill-opacity="1"/></g></g>
+  <desc>Rendered with Seigaiha | https://github.com/ToshY/seigaiha | Created at: <datetime> | Options: eyJzZWVkIjogNDIsICJmcmFjdGlvbnMiOiA1LCAiZWRnZXMiOiA2LCAic3BhY2luZyI6IDAuMywgInJvdGF0aW9uIjogMCwgImNvbG91cnMiOiBbeyJSIjogNjUsICJHIjogMTI0LCAiQiI6IDE5MiwgIkEiOiAxfSwgeyJSIjogMjU1LCAiRyI6IDI1NSwgIkIiOiAyNTUsICJBIjogMX1dLCAib3V0cHV0IjogeyJyZXNvbHV0aW9uIjogMjAwLCAic3ZnIjogeyJwcmVzZXJ2ZUFzcGVjdFJhdGlvIjogInhNaW5ZTWluIG1lZXQiLCAic3R5bGUiOiB7InNoYXBlLXJlbmRlcmluZyI6ICJjcmlzcEVkZ2VzIn19fX0=</desc></svg>
+  '''
+# ---
+# name: test_xml_setup_pattern_grid
+  list([
+    list([
+      list([
+        100.0,
+        100.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': True,
+        }),
+      ]),
+      list([
+        300.0,
+        100.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': True,
+        }),
+      ]),
+      list([
+        500.0,
+        100.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': True,
+        }),
+      ]),
+    ]),
+    list([
+      list([
+        200.0,
+        150.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        400.0,
+        150.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        600.0,
+        150.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': True,
+        }),
+      ]),
+    ]),
+    list([
+      list([
+        100.0,
+        200.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        300.0,
+        200.0,
+        dict({
+          'broken': False,
+          'edge': False,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        500.0,
+        200.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+    ]),
+    list([
+      list([
+        200.0,
+        250.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        400.0,
+        250.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': False,
+        }),
+      ]),
+      list([
+        600.0,
+        250.0,
+        dict({
+          'broken': False,
+          'edge': True,
+          'invisible_edge': True,
+        }),
+      ]),
+    ]),
+  ])
+# ---

@@ -1,4 +1,4 @@
-name: Codequality with Ruff
+name: Testing with Pytest
 
 on:
   push:
@@ -11,8 +11,8 @@ on:
 permissions: {}
 
 jobs:
-  ruff:
-    name: Run codequality checks
+  pytest:
+    name: Run Pytest
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,8 +28,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install system requirements
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libcairo2
+
       - name: Install requirements
         run: pip install -r requirements.txt -r requirements.dev.txt
 
-      - name: Ruff check
-        run: ruff check .
+      - name: Pytest check
+        run: pytest tests/

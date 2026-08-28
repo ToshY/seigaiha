@@ -9,6 +9,10 @@ env:
   GID:
     sh: id -g
   DOCKER_COMPOSE_RUN: docker compose --progress quiet run --rm --build --remove-orphans
+  HADOLINT_IMAGE: ghcr.io/hadolint/hadolint:v2.14.0
+  ACTIONLINT_IMAGE: rhysd/actionlint:1.7.12
+  ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.26.1
+  PINACT_IMAGE: ghcr.io/toshy/docker-pinact:4.1.0
 
 tasks:
   default:
@@ -95,6 +99,29 @@ tasks:
       - cat "{{.INPUT}}" | base64 -w 0 > "{{.INPUT}}.txt"
 
   # Development tools
+  test:
+    desc: Run tests
+    summary: |
+      Run the pytest test suite inside the dev container.
+
+      Usage:
+      - task test
+      - task test -- -v
+      - task test -- tests/test_helper.py
+    cmds:
+      - $DOCKER_COMPOSE_RUN dev python3 -m pytest tests/ {{.CLI_ARGS}}
+
+  test:snapshot:
+    desc: Run tests and update snapshots
+    summary: |
+      Update the syrupy snapshots in tests/__snapshots__ and review the diff.
+
+      Usage:
+      - task test:snapshot
+      - task test:snapshot -- tests/test_cli.py
+    cmds:
+      - $DOCKER_COMPOSE_RUN -u $(id -u):$(id -g) dev python3 -m pytest tests/ --snapshot-update {{.CLI_ARGS}}
+
   ruff:
     desc: Run ruff
     cmds:
@@ -120,14 +147,88 @@ tasks:
     cmds:
       - $DOCKER_COMPOSE_RUN dev mypy .
 
-  mkdocs:
-    desc: MkDocs build
+  # zensical
+  docs:
+    desc: Zensical build
     cmds:
-      - docker run --rm -it -v ${PWD}:/docs ghcr.io/squidfunk/mkdocs-material:9.6 build
+      - docker run --rm -it -v $(pwd):/docs -w /docs docker.io/zensical/zensical:0.0 build --clean
 
-  mkdocs:live:
-    desc: MkDocs development server
+  docs:live:
+    desc: Zensical development server
     vars:
       PORT: '{{.p | default "8001"}}'
     cmds:
-      - docker run --rm -it -p {{.PORT}}:8000 -v ${PWD}:/docs ghcr.io/squidfunk/mkdocs-material:9.6
+      - docker run --rm -it -p {{.PORT}}:8000 -v $(pwd):/docs -w /docs docker.io/zensical/zensical:0.0 serve --dev-addr 0.0.0.0:8000
+
+  # Linting
+  hadolint:
+    desc: Lint all Dockerfiles
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/repo" -w /repo {{.HADOLINT_IMAGE}} hadolint /repo/Dockerfile
+
+  actionlint:
+    desc: Lint GitHub Actions workflows in .github/workflows
+    silent: true
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/repo" -w /repo "{{.ACTIONLINT_IMAGE}}" -color
+
+  zizmor:
+    desc: Audit GitHub Actions workflows and Dependabot config for security issues
+    summary: |
+      Audit everything in .github that zizmor understands: workflows, composite
+      actions and dependabot.yml.
+
+      Limiting this to `--collect=workflows` hides findings that GitHub's own
+      zizmor integration does report, such as the Dependabot cooldown audit.
+    silent: true
+    cmds:
+      - docker run --rm -v "{{.ROOT_DIR}}:/repo" -w /repo "{{.ZIZMOR_IMAGE}}" --color=always .
+
+  pinact:
+    desc: Validate GitHub Actions are pinned to commit SHAs in .github/workflows
+    summary: |
+      Check pinned GitHub Actions against commit SHAs in .github/workflows.
+
+      Usage:
+      - task pinact TOKEN=github_pat_...
+
+      If no "TOKEN" environment variable is passed, you might experience rate limiting.
+      See https://github.com/suzuki-shunsuke/pinact#github-access-token.
+    silent: true
+    vars:
+      TOKEN: '{{.t | default ""}}'
+    cmds:
+      - |
+        if [ ! -d "{{.ROOT_DIR}}/.github/workflows" ]; then
+          printf "\033[33m[pinact]\033[0m no .github/workflows directory found\n"
+          exit 0
+        fi
+        docker run --rm \
+          -v "{{.ROOT_DIR}}:/repo" \
+          -e PINACT_GITHUB_TOKEN="{{.TOKEN}}" \
+          "{{.PINACT_IMAGE}}" run --diff
+
+  pinact:fix:
+    desc: Pin GitHub Actions to commit SHAs in-place in .github/workflows
+    summary: |
+      Check pinned GitHub Actions against commit SHAs in .github/workflows and fixes them.
+
+      Usage:
+      - task pinact:fix TOKEN=github_pat_...
+
+      If no "TOKEN" environment variable is passed, you might experience rate limiting.
+      See https://github.com/suzuki-shunsuke/pinact#github-access-token.
+    silent: true
+    vars:
+      TOKEN: '{{.t | default ""}}'
+    cmds:
+      - |
+        if [ ! -d "{{.ROOT_DIR}}/.github/workflows" ]; then
+          printf "\033[33m[pinact]\033[0m no .github/workflows directory found\n"
+          exit 0
+        fi
+        docker run --rm \
+          -v "{{.ROOT_DIR}}:/repo" \
+          -u "${UID}:${GID}" \
+          -e PINACT_GITHUB_TOKEN="{{.TOKEN}}" \
+          "{{.PINACT_IMAGE}}" run --fix

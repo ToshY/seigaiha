@@ -6,7 +6,7 @@ from pathlib import Path
 
 def files_in_dir(
     path: Path,
-    file_types=["*.json"],
+    file_types=None,
 ):
     """
     Returns a list of files in the given directory that match the specified file types.
@@ -18,6 +18,9 @@ def files_in_dir(
     Returns:
         List[Path]: A list of paths to the files in the directory that match the specified file types.
     """
+
+    if file_types is None:
+        file_types = ["*.json"]
 
     file_list = [
         f

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from seigaiha.helper import read_json, files_in_dir
+from seigaiha.helper import files_in_dir, read_json
 
 
 class InputPathChecker:
@@ -82,8 +82,8 @@ class OutputPathChecker:
             if p.suffix:
                 if not p.parent.is_dir():
                     raise FileNotFoundError(
-                        f"The parent directory `{str(p.parent)}` "
-                        f"for output argument `{str(p)}` does not exist."
+                        f"The parent directory `{p.parent!s}` "
+                        f"for output argument `{p!s}` does not exist."
                     )
                 else:
                     current_batch = {
